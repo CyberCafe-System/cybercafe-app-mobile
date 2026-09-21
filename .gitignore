@@ -1,4 +1,11 @@
-# Miscellaneous
+# ==============================================================================
+# ARCHIVO .GITIGNORE UNIFICADO PARA FLUTTER
+# Fusionado y optimizado
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Miscellaneous / Sistema y Temporales
+# ------------------------------------------------------------------------------
 *.class
 *.log
 *.pyc
@@ -12,34 +19,98 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# ------------------------------------------------------------------------------
+# IDEs & Editores (IntelliJ, Android Studio, VS Code)
+# ------------------------------------------------------------------------------
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
+# El directorio .vscode contiene configuraciones de lanzamiento y tareas.
+# Descomenta la línea de abajo si prefieres NO subir tus configs locales de VS Code.
 #.vscode/
 
-# Flutter/Dart/Pub related
+# ------------------------------------------------------------------------------
+# Flutter / Dart / Pub (Core)
+# ------------------------------------------------------------------------------
 **/doc/api/
-**/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.fvm/flutter_sdk
+.packages
 .pub-cache/
 .pub/
+build/
 /build/
+coverage/
 /coverage/
+lib/generated_plugin_registrant.dart
 
-# Symbolication related
-app.*.symbols
+# Para paquetes de librerías, se recomienda no subir el pubspec.lock.
+# Para aplicaciones normales, descomenta la línea de abajo para sí versionarlo.
+#pubspec.lock
 
-# Obfuscation related
-app.*.map.json
+# ------------------------------------------------------------------------------
+# Android
+# ------------------------------------------------------------------------------
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/key.properties
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
 
-# Android Studio will place build artifacts here
+# Artefactos de compilación de Android Studio
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ------------------------------------------------------------------------------
+# iOS / Xcode
+# ------------------------------------------------------------------------------
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/**/.sconsign.dblite
+**/ios/**/.tags*
+**/ios/**/.vagrant/
+**/ios/**/DerivedData/
+**/ios/**/Icon?
+**/ios/**/Pods/
+**/ios/**/.symlinks/
+**/ios/**/profile
+**/ios/**/xcuserdata
+**/ios/.generated/
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+# ------------------------------------------------------------------------------
+# Ofuscación y Simbolización (Producción)
+# ------------------------------------------------------------------------------
+app.*.symbols
+app.*.map.json
+
+# ------------------------------------------------------------------------------
+# Excepciones a las reglas de arriba
+# ------------------------------------------------------------------------------
+!**/ios/**/default.mode1v3
+!**/ios/**/default.mode2v3
+!**/ios/**/default.pbxuser
+!**/ios/**/default.perspectivev3
+!/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
