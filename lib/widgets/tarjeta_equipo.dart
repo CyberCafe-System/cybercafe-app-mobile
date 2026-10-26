@@ -1,18 +1,37 @@
 import 'package:flutter/material.dart';
+import '../models/equipo.dart';
 
 class TarjetaEquipo extends StatelessWidget {
-  final Map<String, dynamic> equipo;
+  final Equipo equipo;
   final VoidCallback onTap;
 
   const TarjetaEquipo({super.key, required this.equipo, required this.onTap});
 
+  Color get _color {
+    switch (equipo.estado) {
+      case EstadoEquipo.disponible:
+        return const Color(0xFF66BB6A);
+      case EstadoEquipo.daniosMenores:
+        return const Color(0xFFF9A825);
+      case EstadoEquipo.defectuoso:
+        return const Color(0xFFD32F2F);
+      case EstadoEquipo.enMantenimiento:
+        return const Color(0xFF757575);
+    }
+  }
+
   IconData _obtenerIcono() {
-    final estado = equipo['estado'].toString().toLowerCase();
-    if (estado.contains('mantenimiento')) return Icons.build_circle;
-    if (estado.contains('revisión')) return Icons.warning_amber_rounded;
-    return equipo['tipo'] == 'PC'
-        ? Icons.desktop_windows
-        : Icons.sports_esports;
+    switch (equipo.estado) {
+      case EstadoEquipo.enMantenimiento:
+        return Icons.build_circle;
+      case EstadoEquipo.daniosMenores:
+      case EstadoEquipo.defectuoso:
+        return Icons.warning_amber_rounded;
+      case EstadoEquipo.disponible:
+        return equipo.tipo == TipoEquipo.pc
+            ? Icons.desktop_windows
+            : Icons.sports_esports;
+    }
   }
 
   @override
@@ -23,10 +42,10 @@ class TarjetaEquipo extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border(left: BorderSide(color: equipo['color'], width: 6)),
+          border: Border(left: BorderSide(color: _color, width: 6)),
           boxShadow: [
             BoxShadow(
-              color: equipo['color'].withOpacity(0.15),
+              color: _color.withOpacity(0.15),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -38,49 +57,31 @@ class TarjetaEquipo extends StatelessWidget {
             Icon(_obtenerIcono(), size: 38, color: const Color(0xFF2C1E16)),
             const SizedBox(height: 8),
             Text(
-              equipo['id'],
+              equipo.nombre,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                color: equipo['color'].withOpacity(0.15),
+                color: _color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                equipo['estado'],
+                equipo.estado.value,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: equipo['color'],
+                  color: _color,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
-            // NUEVO: Muestra el usuario si existe
-            if (equipo['usuario'] != null) ...[
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.person, size: 14, color: Colors.black87),
-                  const SizedBox(width: 4),
-                  Text(
-                    equipo['usuario'],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ],
         ),
       ),

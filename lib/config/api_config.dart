@@ -15,6 +15,7 @@ class ApiConfig {
 
   static const String loginPath = '/oauth/login';
   static const String logoutPath = '/oauth/logout';
+  static const String equiposPath = '/equipos';
 
   /// Ruta del listado de productos.
   /// Configurable: `--dart-define=PRODUCTS_PATH=/api/products`.
@@ -27,8 +28,9 @@ class ApiConfig {
 
   /// Une la base con [path] evitando barras duplicadas.
   static Uri endpoint(String path) {
-    final normalizedBase =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final normalizedBase = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return Uri.parse('$normalizedBase$normalizedPath');
   }
