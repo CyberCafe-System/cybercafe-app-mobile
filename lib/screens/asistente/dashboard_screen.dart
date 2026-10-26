@@ -53,121 +53,118 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
 
   @override
   Widget build(BuildContext context) {
-    if (_pantallaActiva == 1) {
-      return PerfilScreen(onVolver: () => setState(() => _pantallaActiva = 0));
-    }
-
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
-      body: Column(
-        children: [
-          // CABECERA
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFB06B05),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
+
+      body: _pantallaActiva == 1
+          ? PerfilScreen(onVolver: () => setState(() => _pantallaActiva = 0))
+          : _buildDashboardView(),
+
+      bottomNavigationBar: Container(
+        color: const Color(0xFF2C1E16),
+        child: SafeArea(
+          child: Container(
+            height: 70,
+            decoration: const BoxDecoration(
+              color: Color(0xFF2C1E16),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildBottomNavIcon(Icons.home, "Inicio", 0),
+                _buildBottomNavIcon(Icons.person, "Perfil", 1),
               ],
             ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20.0,
-                  vertical: 15.0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Colors.black,
-                          child: Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 24,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboardView() {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFB06B05),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(30),
+              bottomRight: Radius.circular(30),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 15.0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.black,
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bienvenido',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Bienvenido',
-                              style: TextStyle(
-                                color: Colors.black54,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          Text(
+                            'Edwin Cruz',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
                             ),
-                            Text(
-                              'Edwin Cruz',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Image.asset('assets/img/logo_login.png', height: 40),
-                  ],
-                ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Image.asset('assets/img/logo_login.png', height: 40),
+                ],
               ),
             ),
           ),
-
-          const SizedBox(height: 15),
-
-          // BUSCADOR Y FILTRO
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 45,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: const TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Buscar equipo...',
-                        prefixIcon: Icon(Icons.search, color: Colors.black),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.only(top: 10),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 15,
-                    vertical: 10,
-                  ),
+        ),
+        const SizedBox(height: 15),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 45,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(25),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
@@ -175,75 +172,78 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                       ),
                     ],
                   ),
-                  child: const Row(
-                    children: [
-                      Text(
-                        'Filtrar',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(width: 5),
-                      Icon(Icons.tune, size: 20),
-                    ],
+                  child: const TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar equipo...',
+                      prefixIcon: Icon(Icons.search, color: Colors.black),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.only(top: 10),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 15),
-
-          // GRID
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: GridView.builder(
-                padding: const EdgeInsets.only(bottom: 20),
-                physics: const BouncingScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 15,
-                  mainAxisSpacing: 15,
-                  childAspectRatio: 1.1,
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 10,
                 ),
-                itemCount: _equipos.length,
-                itemBuilder: (context, index) {
-                  return TarjetaEquipo(
-                    equipo: _equipos[index],
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => InspeccionScreen(
-                          equipoId: _equipos[index]['id'],
-                          tipoEquipo: _equipos[index]['tipo'],
-                        ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  children: [
+                    Text(
+                      'Filtrar',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(width: 5),
+                    Icon(Icons.tune, size: 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 15),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: GridView.builder(
+              padding: const EdgeInsets.only(bottom: 20),
+              physics: const BouncingScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 15,
+                mainAxisSpacing: 15,
+                childAspectRatio: 1.1,
+              ),
+              itemCount: _equipos.length,
+              itemBuilder: (context, index) {
+                return TarjetaEquipo(
+                  equipo: _equipos[index],
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => InspeccionScreen(
+                        equipoId: _equipos[index]['id'],
+                        tipoEquipo: _equipos[index]['tipo'],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
-        ],
-      ),
-
-      // MENÚ INFERIOR
-      bottomNavigationBar: Container(
-        height: 70,
-        decoration: const BoxDecoration(
-          color: Color(0xFF2C1E16),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildBottomNavIcon(Icons.home, "Inicio", 0),
-            _buildBottomNavIcon(Icons.person, "Perfil", 1),
-          ],
-        ),
-      ),
+      ],
     );
   }
 

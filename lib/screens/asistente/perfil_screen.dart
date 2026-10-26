@@ -17,10 +17,7 @@ class PerfilScreen extends StatelessWidget {
             padding: const EdgeInsets.only(top: 60, bottom: 40),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF2C1E16),
-                  Color(0xFFB06B05),
-                ], // De Café a Cobre
+                colors: [Color(0xFF2C1E16), Color(0xFFB06B05)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -90,6 +87,7 @@ class PerfilScreen extends StatelessWidget {
 
           const SizedBox(height: 30),
 
+          // Información de cuenta (Solo lectura)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
@@ -107,18 +105,13 @@ class PerfilScreen extends StatelessWidget {
                 _buildInfoCard(Icons.badge, 'Usuario', 'edwin_asistente'),
                 const SizedBox(height: 10),
                 _buildInfoCard(Icons.email, 'Correo', 'edwin@coffeelan.com'),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  Icons.storefront,
-                  'Sucursal',
-                  'The COFFEE LAN - Principal',
-                ),
               ],
             ),
           ),
 
           const Spacer(),
 
+          // Botón de Cerrar Sesión
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: GestureDetector(

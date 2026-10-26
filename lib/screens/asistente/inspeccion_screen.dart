@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'historial_revisiones_screen.dart';
 
 class InspeccionScreen extends StatefulWidget {
   final String equipoId;
@@ -20,7 +21,6 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
   @override
   void initState() {
     super.initState();
-
     if (widget.tipoEquipo == 'Consola') {
       _componentes = [
         {
@@ -73,7 +73,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
           "modelo": "NZXT Cristal",
           "estado": "ok",
           "icono": Icons.dns,
-        }, // Icono de Torre cambiado
+        },
       ];
     }
   }
@@ -107,27 +107,37 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // CABECERA DEL MODAL CON LA 'X'
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.redAccent,
-                      size: 28,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.redAccent,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Text(
+                        'Reportar $componente',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 15),
-                  Text(
-                    'Reportar $componente',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.grey, size: 28),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
@@ -206,7 +216,6 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            // Icono principal dinámico según el equipo
             Icon(
               widget.tipoEquipo == 'PC'
                   ? Icons.desktop_windows
@@ -299,6 +308,40 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                         ),
                         Row(
                           children: [
+                            // BOTÓN DE HISTORIAL
+                            GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      HistorialRevisionesScreen(
+                                        componente: comp['nombre'],
+                                        equipo: widget.equipoId,
+                                      ),
+                                ),
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.blueGrey.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.history,
+                                  color: Colors.blueGrey,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // BOTÓN TODO BIEN
                             GestureDetector(
                               onTap: () =>
                                   setState(() => comp['estado'] = 'ok'),
@@ -346,7 +389,9 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
+
+                            // BOTÓN REPORTAR
                             GestureDetector(
                               onTap: () =>
                                   _mostrarModalReporte(context, comp['nombre']),

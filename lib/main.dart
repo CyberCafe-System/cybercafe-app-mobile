@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/admin/admin_main_screen.dart'; // Importamos el contenedor principal
+import 'screens/admin/admin_main_screen.dart';
 
 void main() {
   runApp(const CoffeeLanApp());

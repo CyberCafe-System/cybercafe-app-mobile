@@ -23,24 +23,32 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
+      resizeToAvoidBottomInset:
+          false, // Evita errores visuales si se abre el teclado
       body: _pantallas[_pantallaActiva],
 
+      // Envolvemos el menú en un SafeArea con fondo oscuro
       bottomNavigationBar: Container(
-        height: 70,
-        decoration: const BoxDecoration(
-          color: Color(0xFF2C1E16),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+        color: const Color(0xFF2C1E16),
+        child: SafeArea(
+          child: Container(
+            height: 70,
+            decoration: const BoxDecoration(
+              color: Color(0xFF2C1E16),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildBottomNavIcon(Icons.dashboard, "Dashboard", 0),
+                _buildBottomNavIcon(Icons.analytics, "Reportes", 1),
+                _buildBottomNavIcon(Icons.admin_panel_settings, "Perfil", 2),
+              ],
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildBottomNavIcon(Icons.dashboard, "Dashboard", 0),
-            _buildBottomNavIcon(Icons.analytics, "Reportes", 1),
-            _buildBottomNavIcon(Icons.admin_panel_settings, "Perfil", 2),
-          ],
         ),
       ),
     );

@@ -9,42 +9,63 @@ class AdminReportesTab extends StatelessWidget {
       length: 3,
       child: Column(
         children: [
-          // Cabecera oscura con los Tabs
+          // Área superior
           Container(
-            color: const Color(0xFF2C1E16),
+            color: const Color(0xFFF4F6F9),
             child: SafeArea(
               bottom: false,
               child: Column(
                 children: [
                   const SizedBox(height: 15),
-                  TabBar(
-                    indicatorColor: const Color.fromARGB(255, 198, 121, 6),
-                    indicatorWeight: 4,
-                    labelColor: const Color.fromARGB(255, 202, 123, 6),
-                    unselectedLabelColor: const Color.fromARGB(
-                      170,
-                      255,
-                      255,
-                      255,
+
+                  // MENÚ CIRCULAR
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    height: 45,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                    tabs: const [
-                      Tab(text: 'Ventas'),
-                      Tab(text: 'Rentas'),
-                      Tab(text: 'Inventario'),
-                    ],
+                    child: TabBar(
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      indicator: BoxDecoration(
+                        color: const Color(0xFFB06B05),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      labelColor: Colors.white,
+                      unselectedLabelColor: const Color(
+                        0xFF2C1E16,
+                      ).withOpacity(0.6),
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                      tabs: const [
+                        Tab(text: 'Ventas'),
+                        Tab(text: 'Rentas'),
+                        Tab(text: 'Inventario'),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
 
-          // NUEVO: Etiqueta indicadora de pantalla actual
+          // Etiqueta indicadora de pantalla actual
           Container(
             margin: const EdgeInsets.only(top: 20, left: 20, right: 20),
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color.fromARGB(255, 48, 27, 10),
               borderRadius: BorderRadius.circular(15),
               border: Border.all(
                 color: const Color(0xFFB06B05).withOpacity(0.3),
@@ -63,10 +84,10 @@ class AdminReportesTab extends StatelessWidget {
                 Icon(Icons.analytics, color: Color(0xFFB06B05)),
                 SizedBox(width: 10),
                 Text(
-                  'REPORTES',
+                  'SECCIÓN DE REPORTES',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF2C1E16),
+                    color: Color.fromARGB(255, 254, 254, 254),
                     letterSpacing: 1.5,
                   ),
                 ),
