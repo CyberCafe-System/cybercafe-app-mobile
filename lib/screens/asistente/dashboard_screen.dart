@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'historial_revisiones_screen.dart';
 import 'inspeccion_screen.dart';
 import 'perfil_screen.dart';
 import '../../models/equipo.dart';
@@ -37,9 +38,11 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
 
-      body: _pantallaActiva == 1
-          ? PerfilScreen(onVolver: () => setState(() => _pantallaActiva = 0))
-          : _buildDashboardView(),
+      body: switch (_pantallaActiva) {
+        1 => const HistorialRevisionesScreen(),
+        2 => PerfilScreen(onVolver: () => setState(() => _pantallaActiva = 0)),
+        _ => _buildDashboardView(),
+      },
 
       bottomNavigationBar: Container(
         color: const Color(0xFF2C1E16),
@@ -57,7 +60,8 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildBottomNavIcon(Icons.home, "Inicio", 0),
-                _buildBottomNavIcon(Icons.person, "Perfil", 1),
+                _buildBottomNavIcon(Icons.history, "Historial", 1),
+                _buildBottomNavIcon(Icons.person, "Perfil", 2),
               ],
             ),
           ),
@@ -253,15 +257,24 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                     final equipo = equipos[index];
                     return TarjetaEquipo(
                       equipo: equipo,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => InspeccionScreen(
-                            equipoId: equipo.nombre,
-                            tipoEquipo: equipo.tipo.value,
+                      onTap: () async {
+                        final equipoId = equipo.equipoId;
+                        if (equipoId == null) return;
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => InspeccionScreen(
+                              equipoId: equipoId,
+                              nombreEquipo: equipo.nombre,
+                              tipoEquipo: equipo.tipo.value,
+                              estadoActual: equipo.estado,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                        if (mounted) {
+                          _recargarEquipos();
+                        }
+                      },
                     );
                   },
                 );

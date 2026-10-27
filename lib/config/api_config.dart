@@ -16,6 +16,9 @@ class ApiConfig {
   static const String loginPath = '/oauth/login';
   static const String logoutPath = '/oauth/logout';
   static const String equiposPath = '/equipos';
+  static const String componentesPath = '/componentes';
+  static const String revisionesPath = '/revisiones';
+  static const String detallesRentaPath = '/detalles-renta';
 
   /// Ruta del listado de productos.
   /// Configurable: `--dart-define=PRODUCTS_PATH=/api/products`.

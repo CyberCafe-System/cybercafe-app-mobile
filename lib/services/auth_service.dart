@@ -42,6 +42,8 @@ class AuthService {
 
   String? _accessToken;
   int? _rolId;
+  int? _usuarioId;
+  String? _username;
 
   /// Se invoca cuando una petición protegida responde 401 (token inválido o
   /// expirado): la sesión local ya fue limpiada y hay que volver al login.
@@ -49,6 +51,8 @@ class AuthService {
 
   String? get accessToken => _accessToken;
   int? get rolId => _rolId;
+  int? get usuarioId => _usuarioId;
+  String? get username => _username;
   bool get isAdmin => _rolId == 1;
   bool get isAsistente => _rolId == 3;
   bool get isAuthenticated => _accessToken != null;
@@ -62,6 +66,8 @@ class AuthService {
     if (token == null || token.isEmpty) {
       _accessToken = null;
       _rolId = null;
+      _usuarioId = null;
+      _username = null;
       return false;
     }
     _accessToken = token;
@@ -147,16 +153,44 @@ class AuthService {
 
   /// Petición GET protegida: adjunta el Bearer y, si responde 401, limpia la
   /// sesión local y avisa vía [onSessionExpired].
-  Future<http.Response> getProtected(Uri uri) async {
+  Future<http.Response> getProtected(Uri uri) {
+    return _protectedRequest(
+      (token) => _client.get(uri, headers: {'Authorization': 'Bearer $token'}),
+    );
+  }
+
+  /// Petición PATCH protegida con el mismo manejo de sesión que [getProtected].
+  Future<http.Response> patchProtected(Uri uri) {
+    return _protectedRequest(
+      (token) =>
+          _client.patch(uri, headers: {'Authorization': 'Bearer $token'}),
+    );
+  }
+
+  /// Petición POST protegida con el mismo manejo de sesión que [getProtected].
+  Future<http.Response> postProtected(
+    Uri uri, {
+    Object? body,
+    Map<String, String>? headers,
+  }) {
+    return _protectedRequest(
+      (token) => _client.post(
+        uri,
+        headers: {'Authorization': 'Bearer $token', ...?headers},
+        body: body,
+      ),
+    );
+  }
+
+  Future<http.Response> _protectedRequest(
+    Future<http.Response> Function(String token) run,
+  ) async {
     final token = _accessToken;
     if (token == null) {
       throw AuthException('Debes iniciar sesión para continuar.');
     }
 
-    final response = await _send(
-      () => _client.get(uri, headers: {'Authorization': 'Bearer $token'}),
-      statusCode: 0,
-    );
+    final response = await _send(() => run(token), statusCode: 0);
 
     if (response.statusCode == 401) {
       await _clearSession();
@@ -192,6 +226,8 @@ class AuthService {
   Future<void> _clearSession() async {
     _accessToken = null;
     _rolId = null;
+    _usuarioId = null;
+    _username = null;
     await _storage.deleteToken();
   }
 
@@ -199,7 +235,7 @@ class AuthService {
     try {
       final parts = token.split('.');
       if (parts.length < 2) {
-        _rolId = null;
+        _resetClaims();
         return;
       }
       final payload = utf8.decode(
@@ -207,14 +243,28 @@ class AuthService {
       );
       final data = jsonDecode(payload);
       if (data is! Map<String, dynamic>) {
-        _rolId = null;
+        _resetClaims();
         return;
       }
       final rol = data['id_rol'] ?? data['rol_id'];
       _rolId = rol is int ? rol : int.tryParse('$rol');
+
+      final id = data['id'] ?? data['usuario_id'];
+      _usuarioId = id is int ? id : int.tryParse('$id');
+
+      final username = data['username'];
+      _username = username is String && username.trim().isNotEmpty
+          ? username.trim()
+          : null;
     } catch (_) {
-      _rolId = null;
+      _resetClaims();
     }
+  }
+
+  void _resetClaims() {
+    _rolId = null;
+    _usuarioId = null;
+    _username = null;
   }
 
   Future<http.Response> _send(

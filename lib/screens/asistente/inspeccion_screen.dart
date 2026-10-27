@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
-import 'historial_revisiones_screen.dart';
+import '../../models/componente.dart';
+import '../../models/equipo.dart';
+import '../../services/auth_service.dart';
+import '../../services/componente_service.dart';
+import '../../services/revision_service.dart';
 
 class InspeccionScreen extends StatefulWidget {
-  final String equipoId;
+  final int equipoId;
+  final String nombreEquipo;
   final String tipoEquipo;
+  final EstadoEquipo estadoActual;
 
   const InspeccionScreen({
     super.key,
     required this.equipoId,
+    required this.nombreEquipo,
     required this.tipoEquipo,
+    required this.estadoActual,
   });
 
   @override
@@ -16,65 +24,192 @@ class InspeccionScreen extends StatefulWidget {
 }
 
 class _InspeccionScreenState extends State<InspeccionScreen> {
-  late List<Map<String, dynamic>> _componentes;
+  late Future<List<Componente>> _componentesFuture;
+  final Map<int, EstadoComponente> _estadosLocales = {};
+  final Set<int> _actualizando = {};
+  final _observacionController = TextEditingController();
+  late EstadoEquipo _estadoEquipoSeleccionado;
+  bool _guardandoRevision = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.tipoEquipo == 'Consola') {
-      _componentes = [
-        {
-          "nombre": "Consola",
-          "modelo": "PS5 Digital",
-          "estado": "ok",
-          "icono": Icons.sports_esports,
-        },
-        {
-          "nombre": "Control 1",
-          "modelo": "DualSense Blanco",
-          "estado": "pendiente",
-          "icono": Icons.videogame_asset,
-        },
-        {
-          "nombre": "Control 2",
-          "modelo": "DualSense Negro",
-          "estado": "ok",
-          "icono": Icons.videogame_asset,
-        },
-        {
-          "nombre": "Cable HDMI",
-          "modelo": "Alta Velocidad 2m",
-          "estado": "ok",
-          "icono": Icons.settings_input_hdmi,
-        },
-      ];
-    } else {
-      _componentes = [
-        {
-          "nombre": "Monitor",
-          "modelo": "Samsung 24\"",
-          "estado": "ok",
-          "icono": Icons.monitor,
-        },
-        {
-          "nombre": "Teclado",
-          "modelo": "Mecánico Redragon",
-          "estado": "pendiente",
-          "icono": Icons.keyboard,
-        },
-        {
-          "nombre": "Mouse",
-          "modelo": "Logitech G203",
-          "estado": "pendiente",
-          "icono": Icons.mouse,
-        },
-        {
-          "nombre": "Torre",
-          "modelo": "NZXT Cristal",
-          "estado": "ok",
-          "icono": Icons.dns,
-        },
-      ];
+    _estadoEquipoSeleccionado = widget.estadoActual;
+    _componentesFuture = _cargarComponentes();
+  }
+
+  @override
+  void dispose() {
+    _observacionController.dispose();
+    super.dispose();
+  }
+
+  Future<List<Componente>> _cargarComponentes() {
+    return ComponenteService.instance.getComponentesPorEquipo(widget.equipoId);
+  }
+
+  void _recargarComponentes() {
+    setState(() {
+      _estadosLocales.clear();
+      _actualizando.clear();
+      _componentesFuture = _cargarComponentes();
+    });
+  }
+
+  Future<void> _cambiarEstado(
+    Componente componente,
+    EstadoComponente nuevoEstado,
+  ) async {
+    final componenteId = componente.componenteId;
+    if (componenteId == null || _actualizando.contains(componenteId)) return;
+
+    final estadoAnterior = _estadosLocales[componenteId] ?? componente.estado;
+
+    setState(() {
+      _estadosLocales[componenteId] = nuevoEstado;
+      _actualizando.add(componenteId);
+    });
+
+    try {
+      final actualizado = await ComponenteService.instance.actualizarEstado(
+        componenteId,
+        nuevoEstado,
+      );
+      if (!mounted) return;
+      setState(() {
+        _estadosLocales[componenteId] = actualizado.estado;
+      });
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _estadosLocales[componenteId] = estadoAnterior;
+      });
+      _mostrarError(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _estadosLocales[componenteId] = estadoAnterior;
+      });
+      _mostrarError('No se pudo actualizar el estado del componente.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _actualizando.remove(componenteId);
+        });
+      }
+    }
+  }
+
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensaje),
+          backgroundColor: const Color(0xFFD32F2F),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _finalizarRevision() async {
+    if (_guardandoRevision) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _guardandoRevision = true);
+
+    try {
+      final componentes = await _componentesFuture;
+      final estadoSeleccionado = _estadoEquipoSeleccionado;
+      var todosDisponibles = true;
+
+      for (final componente in componentes) {
+        final componenteId = componente.componenteId;
+        final estado = componenteId == null
+            ? componente.estado
+            : _estadosLocales[componenteId] ?? componente.estado;
+
+        if (estado != EstadoComponente.disponible) {
+          todosDisponibles = false;
+        }
+      }
+
+      if (estadoSeleccionado == EstadoEquipo.disponible && !todosDisponibles) {
+        _mostrarError(
+          'No puedes dejar el equipo Disponible mientras tenga componentes '
+          'con daños.',
+        );
+        return;
+      }
+
+      final inspeccionPasada = estadoSeleccionado == EstadoEquipo.disponible;
+
+      await RevisionService.instance.crearRevision(
+        equipoId: widget.equipoId,
+        inspeccionPasada: inspeccionPasada,
+        observaciones: _observacionController.text.trim(),
+        estadoSiDaniado: inspeccionPasada ? null : estadoSeleccionado,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Revisión y observación registradas.'),
+          backgroundColor: Color(0xFF43A047),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.pop(context, true);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      _mostrarError(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      _mostrarError('No se pudo registrar la revisión.');
+    } finally {
+      if (mounted) {
+        setState(() => _guardandoRevision = false);
+      }
+    }
+  }
+
+  Color _colorEstado(EstadoComponente estado) {
+    switch (estado) {
+      case EstadoComponente.disponible:
+        return const Color(0xFF43A047);
+      case EstadoComponente.daniosMenores:
+        return const Color(0xFFF9A825);
+      case EstadoComponente.requiereReemplazo:
+        return const Color(0xFFD32F2F);
+    }
+  }
+
+  Color _colorEstadoEquipo(EstadoEquipo estado) {
+    switch (estado) {
+      case EstadoEquipo.disponible:
+        return const Color(0xFF43A047);
+      case EstadoEquipo.daniosMenores:
+        return const Color(0xFFF9A825);
+      case EstadoEquipo.defectuoso:
+        return const Color(0xFFD32F2F);
+      case EstadoEquipo.enMantenimiento:
+        return const Color(0xFF757575);
+    }
+  }
+
+  IconData _iconoComponente(TipoComponente tipo) {
+    switch (tipo) {
+      case TipoComponente.mouse:
+        return Icons.mouse;
+      case TipoComponente.teclado:
+        return Icons.keyboard;
+      case TipoComponente.monitor:
+        return Icons.monitor;
+      case TipoComponente.control:
+        return Icons.videogame_asset;
     }
   }
 
@@ -202,6 +337,8 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final estadoColor = _colorEstadoEquipo(_estadoEquipoSeleccionado);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
       appBar: AppBar(
@@ -224,7 +361,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
               color: const Color(0xFF2C1E16),
             ),
             Text(
-              widget.equipoId,
+              widget.nombreEquipo,
               style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w900,
@@ -246,186 +383,324 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
             const SizedBox(height: 15),
 
             Expanded(
-              child: ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                itemCount: _componentes.length,
-                itemBuilder: (context, index) {
-                  final comp = _componentes[index];
-                  bool isOk = comp['estado'] == 'ok';
+              child: FutureBuilder<List<Componente>>(
+                future: _componentesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFB06B05),
+                      ),
+                    );
+                  }
 
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 15),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: isOk
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.black.withOpacity(0.06),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF4F6F9),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.grey.shade200),
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.cloud_off,
+                            size: 48,
+                            color: Colors.black38,
                           ),
-                          child: Icon(
-                            comp['icono'],
-                            size: 26,
-                            color: const Color(0xFF2C1E16),
+                          const SizedBox(height: 10),
+                          Text(
+                            snapshot.error.toString(),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.black54),
                           ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                comp['nombre'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              Text(
-                                comp['modelo'],
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 10),
+                          TextButton(
+                            onPressed: _recargarComponentes,
+                            child: const Text('Reintentar'),
                           ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final componentes = snapshot.data ?? const <Componente>[];
+                  if (componentes.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'Este equipo no tiene componentes registrados.',
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: componentes.length,
+                    itemBuilder: (context, index) {
+                      final componente = componentes[index];
+                      final componenteId = componente.componenteId;
+                      final estado = componenteId == null
+                          ? componente.estado
+                          : _estadosLocales[componenteId] ?? componente.estado;
+                      final actualizando =
+                          componenteId != null &&
+                          _actualizando.contains(componenteId);
+                      final color = _colorEstado(estado);
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 15),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border(
+                            left: BorderSide(color: color, width: 5),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withOpacity(0.1),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
-                        Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // BOTÓN DE HISTORIAL
-                            GestureDetector(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      HistorialRevisionesScreen(
-                                        componente: comp['nombre'],
-                                        equipo: widget.equipoId,
-                                      ),
-                                ),
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.blueGrey.withOpacity(0.3),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF4F6F9),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    _iconoComponente(componente.tipo),
+                                    size: 26,
+                                    color: const Color(0xFF2C1E16),
                                   ),
                                 ),
-                                child: const Icon(
-                                  Icons.history,
-                                  color: Colors.blueGrey,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-
-                            // BOTÓN TODO BIEN
-                            GestureDetector(
-                              onTap: () =>
-                                  setState(() => comp['estado'] = 'ok'),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: isOk
-                                      ? const LinearGradient(
-                                          colors: [
-                                            Color(0xFF66BB6A),
-                                            Color(0xFF43A047),
-                                          ],
-                                        )
-                                      : const LinearGradient(
-                                          colors: [Colors.white, Colors.white],
+                                const SizedBox(width: 15),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        componente.nombre,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
                                         ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isOk
-                                        ? Colors.transparent
-                                        : Colors.grey.shade300,
+                                      ),
+                                      Text(
+                                        componente.descripcion ??
+                                            componente.tipo.value,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  boxShadow: isOk
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.green.withOpacity(
-                                              0.4,
-                                            ),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ]
-                                      : [],
                                 ),
-                                child: Icon(
-                                  Icons.check,
-                                  color: isOk
-                                      ? Colors.white
-                                      : Colors.grey.shade400,
-                                  size: 20,
+                                GestureDetector(
+                                  onTap: () => _mostrarModalReporte(
+                                    context,
+                                    componente.nombre,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.redAccent.withOpacity(
+                                          0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.priority_high_rounded,
+                                      color: Colors.redAccent,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: color.withOpacity(0.3),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-
-                            // BOTÓN REPORTAR
-                            GestureDetector(
-                              onTap: () =>
-                                  _mostrarModalReporte(context, comp['nombre']),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<EstadoComponente>(
+                                  value: estado,
+                                  isExpanded: true,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.redAccent.withOpacity(0.5),
+                                  dropdownColor: Colors.white,
+                                  icon: actualizando
+                                      ? const SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFFB06B05),
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.arrow_drop_down,
+                                          color: color,
+                                        ),
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
                                   ),
-                                ),
-                                child: const Icon(
-                                  Icons.priority_high_rounded,
-                                  color: Colors.redAccent,
-                                  size: 20,
+                                  onChanged:
+                                      actualizando || componenteId == null
+                                      ? null
+                                      : (nuevoEstado) {
+                                          if (nuevoEstado == null ||
+                                              nuevoEstado == estado) {
+                                            return;
+                                          }
+                                          _cambiarEstado(
+                                            componente,
+                                            nuevoEstado,
+                                          );
+                                        },
+                                  items: EstadoComponente.values.map((item) {
+                                    final itemColor = _colorEstado(item);
+                                    return DropdownMenuItem<EstadoComponente>(
+                                      value: item,
+                                      child: Text(
+                                        item.value,
+                                        style: TextStyle(
+                                          color: itemColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               ),
             ),
 
             const SizedBox(height: 15),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Estado del equipo',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C1E16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: estadoColor.withOpacity(0.35)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<EstadoEquipo>(
+                  value: _estadoEquipoSeleccionado,
+                  isExpanded: true,
+                  borderRadius: BorderRadius.circular(15),
+                  dropdownColor: Colors.white,
+                  icon: Icon(Icons.arrow_drop_down, color: estadoColor),
+                  style: TextStyle(
+                    color: estadoColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  onChanged: _guardandoRevision
+                      ? null
+                      : (nuevoEstado) {
+                          if (nuevoEstado == null) return;
+                          setState(() {
+                            _estadoEquipoSeleccionado = nuevoEstado;
+                          });
+                        },
+                  items: EstadoEquipo.values.map((estado) {
+                    final itemColor = _colorEstadoEquipo(estado);
+                    return DropdownMenuItem<EstadoEquipo>(
+                      value: estado,
+                      child: Text(
+                        estado.value,
+                        style: TextStyle(
+                          color: itemColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Si el estado no es Disponible, la revisión se registrará como '
+              'no aprobada.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF757575)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _observacionController,
+              maxLines: 3,
+              minLines: 1,
+              decoration: InputDecoration(
+                labelText: 'Observaciones del equipo',
+                hintText: 'Agrega una observación para esta revisión...',
+                labelStyle: const TextStyle(color: Color(0xFF2C1E16)),
+                prefixIcon: const Icon(Icons.notes, color: Color(0xFF2C1E16)),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFB06B05),
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             GestureDetector(
-              onTap: () => Navigator.pop(context),
+              onTap: _guardandoRevision ? null : _finalizarRevision,
               child: Container(
                 width: double.infinity,
                 height: 60,
@@ -442,16 +717,25 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Text(
-                    'FINALIZAR REVISIÓN',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 2,
-                    ),
-                  ),
+                child: Center(
+                  child: _guardandoRevision
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'FINALIZAR REVISIÓN',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 2,
+                          ),
+                        ),
                 ),
               ),
             ),
