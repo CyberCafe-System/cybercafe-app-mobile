@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../config/api_config.dart';
 import '../models/equipo.dart';
+import '../models/pendiente_revision.dart';
 import '../models/revision_equipo.dart';
 import '../models/revision_historial.dart';
 import 'auth_service.dart';
@@ -13,59 +14,18 @@ class RevisionService {
 
   final AuthService _auth;
 
-  Future<int?> getDetalleRentaPendienteId(int equipoId) async {
-    if (equipoId < 1) {
-      throw ArgumentError.value(
-        equipoId,
-        'equipoId',
-        'Debe ser mayor o igual a 1',
-      );
-    }
-
-    final uri = ApiConfig.endpoint(ApiConfig.detallesRentaPath).replace(
-      queryParameters: {
-        'equipo_id': '$equipoId',
-        'estado': 'Pendiente Revision',
-        'offset': '0',
-        'limit': '1',
-      },
-    );
-    final response = await _auth.getProtected(uri);
-
-    if (response.statusCode != 200) {
-      throw _errorFor(
-        response.statusCode,
-        response.bodyBytes,
-        'No se pudo consultar la renta pendiente de revisión.',
-      );
-    }
-
-    final data = _decode(
-      response.bodyBytes,
-      'No se pudo consultar la renta pendiente de revisión.',
-    );
-    if (data is! List) {
-      throw AuthException('El servidor devolvió una respuesta inesperada.');
-    }
-    if (data.isEmpty) return null;
-
-    final detalle = data.first;
-    if (detalle is! Map) {
-      throw AuthException('El servidor devolvió una respuesta inesperada.');
-    }
-    return _parseInt(detalle['detalle_renta_id']);
-  }
-
   Future<RevisionEquipo> crearRevision({
-    required int equipoId,
+    required int detalleRentaId,
     required bool inspeccionPasada,
     required String observaciones,
+    List<ComponenteRevisionItem>? componentesAfectados,
     EstadoEquipo? estadoSiDaniado,
   }) async {
-    final detalleRentaId = await getDetalleRentaPendienteId(equipoId);
-    if (detalleRentaId == null) {
-      throw AuthException(
-        'El equipo no tiene una renta pendiente de revisión.',
+    if (detalleRentaId < 1) {
+      throw ArgumentError.value(
+        detalleRentaId,
+        'detalleRentaId',
+        'Debe ser mayor o igual a 1',
       );
     }
 
@@ -73,6 +33,7 @@ class RevisionService {
       detalleRentaId: detalleRentaId,
       inspeccionPasada: inspeccionPasada,
       observaciones: observaciones,
+      componentesAfectados: componentesAfectados,
     );
 
     var uri = ApiConfig.endpoint(ApiConfig.revisionesPath);
@@ -106,7 +67,7 @@ class RevisionService {
     return RevisionEquipo.fromJson(Map<String, dynamic>.from(data));
   }
 
-  Future<Map<int, String?>> getEquiposConRevisionPendiente({
+  Future<Map<int, PendienteRevision>> getEquiposConRevisionPendiente({
     int maxItems = 1000,
   }) async {
     if (maxItems < 1) {
@@ -135,9 +96,15 @@ class RevisionService {
       'No se pudieron cargar los clientes.',
       maxItems: maxItems,
     );
+    final revisionesFuture = _getAllListOrEmpty(
+      ApiConfig.revisionesPath,
+      'No se pudieron cargar las revisiones.',
+      maxItems: maxItems,
+    );
 
     final rentas = await rentasFuture;
     final clientes = await clientesFuture;
+    final revisiones = await revisionesFuture;
 
     final clientePorRenta = <int, int>{};
     for (final renta in rentas) {
@@ -157,13 +124,25 @@ class RevisionService {
       }
     }
 
-    final pendientes = <int, String?>{};
+    final detallesYaRevisados = <int>{};
+    for (final revision in revisiones) {
+      final detalleId = _parseInt(revision['detalle_renta_id']);
+      if (detalleId != null) {
+        detallesYaRevisados.add(detalleId);
+      }
+    }
+
+    final pendientes = <int, PendienteRevision>{};
     final detallePorEquipo = <int, int>{};
     for (final detalle in detalles) {
       final equipoId = _parseInt(detalle['equipo_id']);
       if (equipoId == null) continue;
 
-      final detalleId = _parseInt(detalle['detalle_renta_id']) ?? 0;
+      final detalleId = _parseInt(detalle['detalle_renta_id']);
+      if (detalleId == null || detallesYaRevisados.contains(detalleId)) {
+        continue;
+      }
+
       final detalleAnterior = detallePorEquipo[equipoId];
       if (detalleAnterior != null && detalleId <= detalleAnterior) {
         continue;
@@ -172,9 +151,12 @@ class RevisionService {
       final rentaId = _parseInt(detalle['renta_id']);
       final clienteId = rentaId == null ? null : clientePorRenta[rentaId];
       detallePorEquipo[equipoId] = detalleId;
-      pendientes[equipoId] = clienteId == null
-          ? null
-          : nombrePorCliente[clienteId];
+      pendientes[equipoId] = PendienteRevision(
+        detalleRentaId: detalleId,
+        equipoId: equipoId,
+        rentaId: rentaId,
+        clienteNombre: clienteId == null ? null : nombrePorCliente[clienteId],
+      );
     }
     return pendientes;
   }

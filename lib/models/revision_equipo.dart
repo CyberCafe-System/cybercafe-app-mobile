@@ -1,3 +1,27 @@
+class ComponenteRevisionItem {
+  const ComponenteRevisionItem({
+    this.componenteId,
+    this.nombre,
+    this.estado,
+    this.descripcionDanio,
+  });
+
+  final int? componenteId;
+  final String? nombre;
+  final String? estado;
+  final String? descripcionDanio;
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (componenteId != null) 'componente_id': componenteId,
+      if (nombre != null && nombre!.trim().isNotEmpty) 'nombre': nombre,
+      if (estado != null && estado!.trim().isNotEmpty) 'estado': estado,
+      if (descripcionDanio != null && descripcionDanio!.trim().isNotEmpty)
+        'descripcion_danio': descripcionDanio,
+    };
+  }
+}
+
 class RevisionEquipo {
   const RevisionEquipo({
     this.revisionEquipoId,
@@ -6,6 +30,7 @@ class RevisionEquipo {
     required this.inspeccionPasada,
     required this.observaciones,
     this.fechaRevision,
+    this.componentesAfectados,
   });
 
   final int? revisionEquipoId;
@@ -14,6 +39,7 @@ class RevisionEquipo {
   final bool inspeccionPasada;
   final String observaciones;
   final DateTime? fechaRevision;
+  final List<ComponenteRevisionItem>? componentesAfectados;
 
   factory RevisionEquipo.fromJson(Map<String, dynamic> json) {
     final detalleRentaId = _parseInt(json['detalle_renta_id']);
@@ -46,11 +72,18 @@ class RevisionEquipo {
   }
 
   Map<String, dynamic> toCreateJson() {
+    final componentes = componentesAfectados
+        ?.where((item) => item.toJson().isNotEmpty)
+        .map((item) => item.toJson())
+        .toList();
+
     return {
       'detalle_renta_id': detalleRentaId,
       if (usuarioId != null) 'usuario_id': usuarioId,
       'inspeccion_pasada': inspeccionPasada,
       'observaciones': observaciones,
+      if (componentes != null && componentes.isNotEmpty)
+        'componentes_afectados': componentes,
     };
   }
 

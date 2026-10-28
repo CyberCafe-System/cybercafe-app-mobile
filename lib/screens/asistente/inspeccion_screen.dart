@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
 import '../../models/componente.dart';
 import '../../models/equipo.dart';
+import '../../models/revision_equipo.dart';
 import '../../services/auth_service.dart';
 import '../../services/componente_service.dart';
 import '../../services/revision_service.dart';
 
 class InspeccionScreen extends StatefulWidget {
   final int equipoId;
+  final int detalleRentaId;
   final String nombreEquipo;
   final String tipoEquipo;
   final EstadoEquipo estadoActual;
+  final String? clienteNombre;
 
   const InspeccionScreen({
     super.key,
     required this.equipoId,
+    required this.detalleRentaId,
     required this.nombreEquipo,
     required this.tipoEquipo,
     required this.estadoActual,
+    this.clienteNombre,
   });
 
   @override
@@ -26,7 +31,7 @@ class InspeccionScreen extends StatefulWidget {
 class _InspeccionScreenState extends State<InspeccionScreen> {
   late Future<List<Componente>> _componentesFuture;
   final Map<int, EstadoComponente> _estadosLocales = {};
-  final Set<int> _actualizando = {};
+  final Map<int, String> _descripcionesDanio = {};
   final _observacionController = TextEditingController();
   late EstadoEquipo _estadoEquipoSeleccionado;
   bool _guardandoRevision = false;
@@ -51,53 +56,21 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
   void _recargarComponentes() {
     setState(() {
       _estadosLocales.clear();
-      _actualizando.clear();
+      _descripcionesDanio.clear();
       _componentesFuture = _cargarComponentes();
     });
   }
 
-  Future<void> _cambiarEstado(
-    Componente componente,
-    EstadoComponente nuevoEstado,
-  ) async {
+  void _cambiarEstado(Componente componente, EstadoComponente nuevoEstado) {
     final componenteId = componente.componenteId;
-    if (componenteId == null || _actualizando.contains(componenteId)) return;
-
-    final estadoAnterior = _estadosLocales[componenteId] ?? componente.estado;
+    if (componenteId == null) return;
 
     setState(() {
       _estadosLocales[componenteId] = nuevoEstado;
-      _actualizando.add(componenteId);
-    });
-
-    try {
-      final actualizado = await ComponenteService.instance.actualizarEstado(
-        componenteId,
-        nuevoEstado,
-      );
-      if (!mounted) return;
-      setState(() {
-        _estadosLocales[componenteId] = actualizado.estado;
-      });
-    } on AuthException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _estadosLocales[componenteId] = estadoAnterior;
-      });
-      _mostrarError(e.message);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _estadosLocales[componenteId] = estadoAnterior;
-      });
-      _mostrarError('No se pudo actualizar el estado del componente.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _actualizando.remove(componenteId);
-        });
+      if (nuevoEstado == EstadoComponente.disponible) {
+        _descripcionesDanio.remove(componenteId);
       }
-    }
+    });
   }
 
   void _mostrarError(String mensaje) {
@@ -115,43 +88,291 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
       );
   }
 
+  Future<void> _mostrarModalReporte(Componente componente) async {
+    final componenteId = componente.componenteId;
+    if (componenteId == null) return;
+
+    final controller = TextEditingController(
+      text: _descripcionesDanio[componenteId] ?? '',
+    );
+    String? error;
+
+    final resultado = await showModalBottomSheet<_ReporteDanio>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void enviar({required bool mantenimiento}) {
+              final texto = controller.text.trim();
+              if (texto.isEmpty) {
+                setSheetState(
+                  () => error = 'Describe la falla del componente.',
+                );
+                return;
+              }
+              Navigator.pop(
+                sheetContext,
+                _ReporteDanio(descripcion: texto, mantenimiento: mantenimiento),
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.redAccent,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 15),
+                            Text(
+                              'Reportar ${componente.nombre}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.grey,
+                            size: 28,
+                          ),
+                          onPressed: () => Navigator.pop(sheetContext),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 25),
+                    TextField(
+                      controller: controller,
+                      maxLines: 4,
+                      autofocus: true,
+                      onChanged: (_) {
+                        if (error != null) {
+                          setSheetState(() => error = null);
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Describe la falla con detalle...',
+                        errorText: error,
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(
+                            color: Colors.redAccent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+                    GestureDetector(
+                      onTap: () => enviar(mantenimiento: true),
+                      child: Container(
+                        width: double.infinity,
+                        height: 55,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF5252), Color(0xFFD32F2F)],
+                          ),
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.redAccent.withOpacity(0.4),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'ENVIAR A MANTENIMIENTO',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => enviar(mantenimiento: false),
+                      child: const Text(
+                        'Solo reportar daño',
+                        style: TextStyle(
+                          color: Color(0xFFB06B05),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    if (resultado == null || !mounted) return;
+
+    setState(() {
+      _descripcionesDanio[componenteId] = resultado.descripcion;
+      if (resultado.mantenimiento) {
+        _estadosLocales[componenteId] = EstadoComponente.requiereReemplazo;
+        _estadoEquipoSeleccionado = EstadoEquipo.enMantenimiento;
+      } else {
+        final estadoActual = _estadosLocales[componenteId] ?? componente.estado;
+        _estadosLocales[componenteId] =
+            estadoActual == EstadoComponente.disponible
+            ? EstadoComponente.daniosMenores
+            : estadoActual;
+      }
+    });
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            resultado.mantenimiento
+                ? 'Componente enviado a mantenimiento.'
+                : 'Daño registrado para ${componente.nombre}.',
+          ),
+          backgroundColor: const Color(0xFFB06B05),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
   Future<void> _finalizarRevision() async {
     if (_guardandoRevision) return;
 
     FocusScope.of(context).unfocus();
-    setState(() => _guardandoRevision = true);
 
+    List<Componente> componentes;
     try {
-      final componentes = await _componentesFuture;
-      final estadoSeleccionado = _estadoEquipoSeleccionado;
-      var todosDisponibles = true;
+      componentes = await _componentesFuture;
+    } catch (_) {
+      if (mounted) {
+        _mostrarError('No se pudieron cargar los componentes del equipo.');
+      }
+      return;
+    }
+    if (!mounted) return;
 
-      for (final componente in componentes) {
+    final inspeccionPasada =
+        _estadoEquipoSeleccionado == EstadoEquipo.disponible;
+
+    if (inspeccionPasada) {
+      final todosDisponibles = componentes.every((componente) {
         final componenteId = componente.componenteId;
         final estado = componenteId == null
             ? componente.estado
             : _estadosLocales[componenteId] ?? componente.estado;
+        return estado == EstadoComponente.disponible;
+      });
 
-        if (estado != EstadoComponente.disponible) {
-          todosDisponibles = false;
-        }
-      }
-
-      if (estadoSeleccionado == EstadoEquipo.disponible && !todosDisponibles) {
+      if (!todosDisponibles) {
         _mostrarError(
           'No puedes dejar el equipo Disponible mientras tenga componentes '
           'con daños.',
         );
         return;
       }
+    }
 
-      final inspeccionPasada = estadoSeleccionado == EstadoEquipo.disponible;
+    final observaciones = _observacionController.text.trim();
+    if (!inspeccionPasada && observaciones.isEmpty) {
+      _mostrarError(
+        'Describe la novedad del equipo en Observaciones para registrar la '
+        'revisión.',
+      );
+      return;
+    }
 
+    final afectados = <ComponenteRevisionItem>[];
+    if (!inspeccionPasada) {
+      for (final componente in componentes) {
+        final componenteId = componente.componenteId;
+        if (componenteId == null) continue;
+
+        final estado = _estadosLocales[componenteId] ?? componente.estado;
+        if (estado == EstadoComponente.disponible) continue;
+
+        afectados.add(
+          ComponenteRevisionItem(
+            componenteId: componenteId,
+            nombre: componente.nombre,
+            estado: estado.value,
+            descripcionDanio: _descripcionesDanio[componenteId],
+          ),
+        );
+      }
+    }
+
+    final confirmado = await _confirmarRevision(
+      inspeccionPasada: inspeccionPasada,
+      afectados: afectados,
+      observaciones: observaciones,
+    );
+    if (confirmado != true || !mounted) return;
+
+    setState(() => _guardandoRevision = true);
+
+    try {
       await RevisionService.instance.crearRevision(
-        equipoId: widget.equipoId,
+        detalleRentaId: widget.detalleRentaId,
         inspeccionPasada: inspeccionPasada,
-        observaciones: _observacionController.text.trim(),
-        estadoSiDaniado: inspeccionPasada ? null : estadoSeleccionado,
+        observaciones: observaciones,
+        componentesAfectados: afectados.isEmpty ? null : afectados,
+        estadoSiDaniado: inspeccionPasada ? null : _estadoEquipoSeleccionado,
       );
 
       if (!mounted) return;
@@ -174,6 +395,80 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
         setState(() => _guardandoRevision = false);
       }
     }
+  }
+
+  Future<bool?> _confirmarRevision({
+    required bool inspeccionPasada,
+    required List<ComponenteRevisionItem> afectados,
+    required String observaciones,
+  }) {
+    final color = inspeccionPasada
+        ? const Color(0xFF43A047)
+        : const Color(0xFFF9A825);
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          inspeccionPasada
+              ? 'Aprobar revisión'
+              : 'Registrar revisión con daños',
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                inspeccionPasada
+                    ? 'El equipo quedará disponible para una nueva renta.'
+                    : 'El equipo quedará en estado '
+                          '"${_estadoEquipoSeleccionado.value}" y la renta '
+                          'se finalizará.',
+              ),
+              if (afectados.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Componentes afectados',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                ...afectados.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '• ${item.nombre ?? 'Componente #${item.componenteId}'}: '
+                      '${item.estado ?? ''}',
+                    ),
+                  ),
+                ),
+              ],
+              if (observaciones.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Observaciones',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(observaciones),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: color),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Color _colorEstado(EstadoComponente estado) {
@@ -213,131 +508,10 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
     }
   }
 
-  void _mostrarModalReporte(BuildContext context, String componente) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(30),
-              topRight: Radius.circular(30),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // CABECERA DEL MODAL CON LA 'X'
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.warning_amber_rounded,
-                          color: Colors.redAccent,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      Text(
-                        'Reportar $componente',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.grey, size: 28),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 25),
-              TextField(
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Describe la falla con detalle...',
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(
-                      color: Colors.redAccent,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 25),
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  width: double.infinity,
-                  height: 55,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFF5252), Color(0xFFD32F2F)],
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.redAccent.withOpacity(0.4),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'ENVIAR A MANTENIMIENTO',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final estadoColor = _colorEstadoEquipo(_estadoEquipoSeleccionado);
+    final cliente = widget.clienteNombre?.trim();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
@@ -368,6 +542,15 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                 color: Color(0xFF2C1E16),
               ),
             ),
+            if (cliente != null && cliente.isNotEmpty)
+              Text(
+                'Cliente: $cliente',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black54,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             const SizedBox(height: 20),
             const Align(
               alignment: Alignment.centerLeft,
@@ -439,10 +622,10 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                       final estado = componenteId == null
                           ? componente.estado
                           : _estadosLocales[componenteId] ?? componente.estado;
-                      final actualizando =
-                          componenteId != null &&
-                          _actualizando.contains(componenteId);
                       final color = _colorEstado(estado);
+                      final descripcion = componenteId == null
+                          ? null
+                          : _descripcionesDanio[componenteId]?.trim();
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 15),
@@ -508,10 +691,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                   ),
                                 ),
                                 GestureDetector(
-                                  onTap: () => _mostrarModalReporte(
-                                    context,
-                                    componente.nombre,
-                                  ),
+                                  onTap: () => _mostrarModalReporte(componente),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 10,
@@ -535,6 +715,30 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                 ),
                               ],
                             ),
+                            if (descripcion != null &&
+                                descripcion.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.build_outlined,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      descripcion,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                             const SizedBox(height: 12),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -553,26 +757,17 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                   isExpanded: true,
                                   borderRadius: BorderRadius.circular(12),
                                   dropdownColor: Colors.white,
-                                  icon: actualizando
-                                      ? const SizedBox(
-                                          height: 18,
-                                          width: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Color(0xFFB06B05),
-                                          ),
-                                        )
-                                      : Icon(
-                                          Icons.arrow_drop_down,
-                                          color: color,
-                                        ),
+                                  icon: Icon(
+                                    Icons.arrow_drop_down,
+                                    color: color,
+                                  ),
                                   style: TextStyle(
                                     color: color,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                   ),
                                   onChanged:
-                                      actualizando || componenteId == null
+                                      _guardandoRevision || componenteId == null
                                       ? null
                                       : (nuevoEstado) {
                                           if (nuevoEstado == null ||
@@ -670,7 +865,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
             const SizedBox(height: 6),
             const Text(
               'Si el estado no es Disponible, la revisión se registrará como '
-              'no aprobada.',
+              'no aprobada y se actualizarán los componentes marcados.',
               style: TextStyle(fontSize: 12, color: Color(0xFF757575)),
             ),
             const SizedBox(height: 12),
@@ -744,4 +939,11 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
       ),
     );
   }
+}
+
+class _ReporteDanio {
+  const _ReporteDanio({required this.descripcion, required this.mantenimiento});
+
+  final String descripcion;
+  final bool mantenimiento;
 }

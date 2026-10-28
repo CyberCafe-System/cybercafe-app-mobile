@@ -5,7 +5,9 @@
 class ApiConfig {
   ApiConfig._();
 
-  static const String _defaultBaseUrl = 'http://20.114.51.249/';
+  //static const String _defaultBaseUrl = 'http://20.114.51.249/';
+  static const String _defaultBaseUrl = 'http://127.0.0.1:8000/';
+
 
   /// URL base del backend (sin importar si termina en `/`).
   static const String baseUrl = String.fromEnvironment(

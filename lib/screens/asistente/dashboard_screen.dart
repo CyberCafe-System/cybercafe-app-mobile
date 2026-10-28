@@ -3,6 +3,7 @@ import 'historial_revisiones_screen.dart';
 import 'inspeccion_screen.dart';
 import 'perfil_screen.dart';
 import '../../models/equipo.dart';
+import '../../models/pendiente_revision.dart';
 import '../../services/auth_service.dart';
 import '../../services/equipo_service.dart';
 import '../../services/revision_service.dart';
@@ -27,17 +28,17 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
 
   Future<_DashboardData> _cargarDashboard() async {
     final resultados = await Future.wait<Object>([
-      EquipoService.instance.getEquipos(offset: 0, limit: 50),
+      EquipoService.instance.getEquipos(offset: 0, limit: 200),
       _cargarPendientesRevision(),
     ]);
 
     return _DashboardData(
       equipos: resultados[0] as List<Equipo>,
-      pendientes: resultados[1] as Map<int, String?>,
+      pendientes: resultados[1] as Map<int, PendienteRevision>,
     );
   }
 
-  Future<Map<int, String?>> _cargarPendientesRevision() async {
+  Future<Map<int, PendienteRevision>> _cargarPendientesRevision() async {
     try {
       return await RevisionService.instance.getEquiposConRevisionPendiente();
     } on AuthException catch (e) {
@@ -259,7 +260,8 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
 
                 final data = snapshot.data;
                 final equipos = data?.equipos ?? const <Equipo>[];
-                final pendientes = data?.pendientes ?? const <int, String?>{};
+                final pendientes =
+                    data?.pendientes ?? const <int, PendienteRevision>{};
                 if (equipos.isEmpty) {
                   return const Center(
                     child: Text('No hay equipos registrados.'),
@@ -278,25 +280,40 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                   itemCount: equipos.length,
                   itemBuilder: (context, index) {
                     final equipo = equipos[index];
+                    final pendiente = equipo.equipoId == null
+                        ? null
+                        : pendientes[equipo.equipoId];
                     return TarjetaEquipo(
                       equipo: equipo,
-                      pendienteRevision:
-                          equipo.equipoId != null &&
-                          pendientes.containsKey(equipo.equipoId),
-                      clienteNombre: equipo.equipoId == null
-                          ? null
-                          : pendientes[equipo.equipoId],
+                      pendienteRevision: pendiente != null,
+                      clienteNombre: pendiente?.clienteNombre,
                       onTap: () async {
                         final equipoId = equipo.equipoId;
                         if (equipoId == null) return;
+                        if (pendiente == null) {
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Este equipo no tiene una renta pendiente '
+                                  'de revisión.',
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          return;
+                        }
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => InspeccionScreen(
                               equipoId: equipoId,
+                              detalleRentaId: pendiente.detalleRentaId,
                               nombreEquipo: equipo.nombre,
                               tipoEquipo: equipo.tipo.value,
                               estadoActual: equipo.estado,
+                              clienteNombre: pendiente.clienteNombre,
                             ),
                           ),
                         );
@@ -354,5 +371,5 @@ class _DashboardData {
   const _DashboardData({required this.equipos, required this.pendientes});
 
   final List<Equipo> equipos;
-  final Map<int, String?> pendientes;
+  final Map<int, PendienteRevision> pendientes;
 }

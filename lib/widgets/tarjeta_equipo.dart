@@ -135,6 +135,18 @@ class TarjetaEquipo extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Toca para inspeccionar',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: Color(0xFF1E88E5),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ],
                 ),
