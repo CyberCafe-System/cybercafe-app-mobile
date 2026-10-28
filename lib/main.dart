@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/admin/admin_main_screen.dart';
+import 'screens/auth/login_screen.dart';
 
 void main() {
   runApp(const CoffeeLanApp());
@@ -22,8 +22,7 @@ class CoffeeLanApp extends StatelessWidget {
           secondary: const Color(0xFFB06B05),
         ),
       ),
-      home:
-          const AdminMainScreen(), // Llamamos a la pantalla con el menú inferior
+      home: const LoginScreen(),
     );
   }
 }

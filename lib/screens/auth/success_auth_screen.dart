@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import '../asistente/dashboard_screen.dart';
 
 class SuccessAuthScreen extends StatefulWidget {
-  const SuccessAuthScreen({super.key});
+  const SuccessAuthScreen({super.key, required this.destination});
+
+  final Widget destination;
 
   @override
   State<SuccessAuthScreen> createState() => _SuccessAuthScreenState();
@@ -22,7 +23,7 @@ class _SuccessAuthScreenState extends State<SuccessAuthScreen> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const DashboardAsistente()),
+      MaterialPageRoute(builder: (context) => widget.destination),
     );
   }
 

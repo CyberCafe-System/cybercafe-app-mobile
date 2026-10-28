@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Necesario para el efecto de desenfoque (vidrio)
-import 'success_auth_screen.dart'; // Nueva pantalla de animación
+import 'dart:ui';
+import '../../services/auth_service.dart';
+import '../admin/admin_main_screen.dart';
+import '../asistente/dashboard_screen.dart';
+import 'success_auth_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,21 +18,88 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  void _loginProcess() async {
+  Future<void> _loginProcess() async {
     FocusScope.of(context).unfocus();
+
+    final username = _userController.text.trim();
+    final password = _passwordController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      _showError('Ingresa tu usuario y contraseña.');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
-    // TODO: BACKEND - Validación de credenciales con la API
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await AuthService.instance.login(username: username, password: password);
 
-    setState(() => _isLoading = false);
-    if (!mounted) return;
+      final rolId = AuthService.instance.rolId;
+      if (rolId != 1 && rolId != 3) {
+        try {
+          await AuthService.instance.logout();
+        } catch (_) {}
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        _showError('Tu rol no tiene acceso a la aplicación móvil.');
+        return;
+      }
 
-    // Al ser correcto, enviamos a la pantalla de animación
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const SuccessAuthScreen()),
-    );
+      try {
+        await AuthService.instance.cargarPerfil();
+      } on AuthException catch (e) {
+        if (e.statusCode == 401) {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          _showError(e.message);
+          return;
+        }
+      } catch (_) {
+        // El perfil es opcional: si falla, se usa el username del token.
+      }
+
+      final destination = rolId == 1
+          ? const AdminMainScreen()
+          : const DashboardAsistente();
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SuccessAuthScreen(destination: destination),
+        ),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showError(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showError('No se pudo iniciar sesión. Inténtalo de nuevo.');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: const Color(0xFFB06B05),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+  }
+
+  @override
+  void dispose() {
+    _userController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override

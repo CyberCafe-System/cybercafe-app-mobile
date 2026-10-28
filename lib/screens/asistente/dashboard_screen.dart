@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'historial_revisiones_screen.dart';
 import 'inspeccion_screen.dart';
 import 'perfil_screen.dart';
+import '../../models/equipo.dart';
+import '../../models/pendiente_revision.dart';
+import '../../services/auth_service.dart';
+import '../../services/equipo_service.dart';
+import '../../services/revision_service.dart';
 import '../../widgets/tarjeta_equipo.dart';
 
 class DashboardAsistente extends StatefulWidget {
@@ -12,53 +18,53 @@ class DashboardAsistente extends StatefulWidget {
 
 class _DashboardAsistenteState extends State<DashboardAsistente> {
   int _pantallaActiva = 0;
+  late Future<_DashboardData> _dashboardFuture;
 
-  final List<Map<String, dynamic>> _equipos = [
-    {
-      "id": "PC-01",
-      "tipo": "PC",
-      "estado": "En Uso",
-      "usuario": "Carlos M.",
-      "color": const Color(0xFFD32F2F),
-    },
-    {
-      "id": "PC-02",
-      "tipo": "PC",
-      "estado": "DISPONIBLE",
-      "usuario": null,
-      "color": const Color(0xFF66BB6A),
-    },
-    {
-      "id": "Consola-01",
-      "tipo": "Consola",
-      "estado": "En Uso",
-      "usuario": "Julián A.",
-      "color": const Color(0xFFD32F2F),
-    },
-    {
-      "id": "PC-04",
-      "tipo": "PC",
-      "estado": "Necesita Revisión",
-      "usuario": null,
-      "color": const Color(0xFFBDBDBD),
-    },
-    {
-      "id": "Consola-02",
-      "tipo": "Consola",
-      "estado": "DISPONIBLE",
-      "usuario": null,
-      "color": const Color(0xFF66BB6A),
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _dashboardFuture = _cargarDashboard();
+  }
+
+  Future<_DashboardData> _cargarDashboard() async {
+    final resultados = await Future.wait<Object>([
+      EquipoService.instance.getEquipos(offset: 0, limit: 200),
+      _cargarPendientesRevision(),
+    ]);
+
+    return _DashboardData(
+      equipos: resultados[0] as List<Equipo>,
+      pendientes: resultados[1] as Map<int, PendienteRevision>,
+    );
+  }
+
+  Future<Map<int, PendienteRevision>> _cargarPendientesRevision() async {
+    try {
+      return await RevisionService.instance.getEquiposConRevisionPendiente();
+    } on AuthException catch (e) {
+      if (e.statusCode == 401) rethrow;
+      return const {};
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  void _recargarEquipos() {
+    setState(() {
+      _dashboardFuture = _cargarDashboard();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
 
-      body: _pantallaActiva == 1
-          ? PerfilScreen(onVolver: () => setState(() => _pantallaActiva = 0))
-          : _buildDashboardView(),
+      body: switch (_pantallaActiva) {
+        1 => const HistorialRevisionesScreen(),
+        2 => PerfilScreen(onVolver: () => setState(() => _pantallaActiva = 0)),
+        _ => _buildDashboardView(),
+      },
 
       bottomNavigationBar: Container(
         color: const Color(0xFF2C1E16),
@@ -76,7 +82,8 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildBottomNavIcon(Icons.home, "Inicio", 0),
-                _buildBottomNavIcon(Icons.person, "Perfil", 1),
+                _buildBottomNavIcon(Icons.history, "Historial", 1),
+                _buildBottomNavIcon(Icons.person, "Perfil", 2),
               ],
             ),
           ),
@@ -113,41 +120,58 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.black,
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 24,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.black,
+                          child: Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Bienvenido',
-                            style: TextStyle(
-                              color: Colors.black54,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Bienvenido',
+                                style: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                AuthService.instance.nombreMostrado,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              Text(
+                                AuthService.instance.etiquetaRol,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            'Edwin Cruz',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 10),
                   Image.asset('assets/img/logo_login.png', height: 40),
                 ],
               ),
@@ -216,28 +240,106 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: GridView.builder(
-              padding: const EdgeInsets.only(bottom: 20),
-              physics: const BouncingScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 15,
-                mainAxisSpacing: 15,
-                childAspectRatio: 1.1,
-              ),
-              itemCount: _equipos.length,
-              itemBuilder: (context, index) {
-                return TarjetaEquipo(
-                  equipo: _equipos[index],
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => InspeccionScreen(
-                        equipoId: _equipos[index]['id'],
-                        tipoEquipo: _equipos[index]['tipo'],
-                      ),
+            child: FutureBuilder<_DashboardData>(
+              future: _dashboardFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFB06B05)),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.cloud_off,
+                          size: 48,
+                          color: Colors.black38,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          snapshot.error.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.black54),
+                        ),
+                        const SizedBox(height: 10),
+                        TextButton(
+                          onPressed: _recargarEquipos,
+                          child: const Text('Reintentar'),
+                        ),
+                      ],
                     ),
+                  );
+                }
+
+                final data = snapshot.data;
+                final equipos = data?.equipos ?? const <Equipo>[];
+                final pendientes =
+                    data?.pendientes ?? const <int, PendienteRevision>{};
+                if (equipos.isEmpty) {
+                  return const Center(
+                    child: Text('No hay equipos registrados.'),
+                  );
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  physics: const BouncingScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 15,
+                    mainAxisSpacing: 15,
+                    childAspectRatio: 1.1,
                   ),
+                  itemCount: equipos.length,
+                  itemBuilder: (context, index) {
+                    final equipo = equipos[index];
+                    final pendiente = equipo.equipoId == null
+                        ? null
+                        : pendientes[equipo.equipoId];
+                    return TarjetaEquipo(
+                      equipo: equipo,
+                      pendienteRevision: pendiente != null,
+                      clienteNombre: pendiente?.clienteNombre,
+                      onTap: () async {
+                        final equipoId = equipo.equipoId;
+                        if (equipoId == null) return;
+                        if (pendiente == null) {
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Este equipo no tiene una renta pendiente '
+                                  'de revisión.',
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          return;
+                        }
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => InspeccionScreen(
+                              equipoId: equipoId,
+                              detalleRentaId: pendiente.detalleRentaId,
+                              nombreEquipo: equipo.nombre,
+                              tipoEquipo: equipo.tipo.value,
+                              estadoActual: equipo.estado,
+                              clienteNombre: pendiente.clienteNombre,
+                            ),
+                          ),
+                        );
+                        if (mounted) {
+                          _recargarEquipos();
+                        }
+                      },
+                    );
+                  },
                 );
               },
             ),
@@ -280,4 +382,11 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
       ),
     );
   }
+}
+
+class _DashboardData {
+  const _DashboardData({required this.equipos, required this.pendientes});
+
+  final List<Equipo> equipos;
+  final Map<int, PendienteRevision> pendientes;
 }

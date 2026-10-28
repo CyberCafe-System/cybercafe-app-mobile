@@ -1,16 +1,46 @@
 import 'package:flutter/material.dart';
 
-class AdminHomeTab extends StatelessWidget {
+import '../../models/dashboard_admin.dart';
+import '../../services/auth_service.dart';
+import '../../services/reporte_admin_service.dart';
+import '../../utils/reporte_formatters.dart';
+import 'reportes/reporte_widgets.dart';
+
+class AdminHomeTab extends StatefulWidget {
   const AdminHomeTab({super.key});
+
+  @override
+  State<AdminHomeTab> createState() => _AdminHomeTabState();
+}
+
+class _AdminHomeTabState extends State<AdminHomeTab> {
+  late Future<DashboardAdminData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ReporteAdminService.instance.cargarDashboard();
+  }
+
+  Future<void> _recargar() async {
+    final future = ReporteAdminService.instance.cargarDashboard(
+      forceRefresh: true,
+    );
+    setState(() => _future = future);
+    try {
+      await future;
+    } catch (_) {
+      // El FutureBuilder muestra el error y permite reintentar.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Cabecera Admin
         Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF2C1E16),
+            color: adminMarron,
             borderRadius: BorderRadius.only(
               bottomLeft: Radius.circular(30),
               bottomRight: Radius.circular(30),
@@ -26,282 +56,479 @@ class AdminHomeTab extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Color(0xFFB06B05),
-                        child: Icon(
-                          Icons.admin_panel_settings,
-                          color: Colors.white,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 20,
+                          backgroundColor: adminAmbar,
+                          child: Icon(
+                            Icons.admin_panel_settings,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Edwin Cruz',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                            ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                AuthService.instance.nombreMostrado,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              Text(
+                                AuthService.instance.etiquetaRol,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            'Administrador',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 10),
                   Image.asset('assets/img/logo_login.png', height: 40),
                 ],
               ),
             ),
           ),
         ),
-
         Expanded(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 20, left: 20, right: 20),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: const Color(0xFFB06B05).withOpacity(0.3),
+          child: FutureBuilder<DashboardAdminData>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: adminAmbar),
+                );
+              }
+              if (snapshot.hasError) {
+                return ReporteErrorState(
+                  mensaje: '${snapshot.error}',
+                  onRetry: _recargar,
+                );
+              }
+
+              final datos = snapshot.data!;
+              return RefreshIndicator(
+                color: adminAmbar,
+                onRefresh: _recargar,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+                  children: [
+                    _EncabezadoSeccion(
+                      titulo: 'Resumen del Día',
+                      subtitulo: formatearFecha(datos.hoy.fecha),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.dashboard, color: Color(0xFFB06B05)),
-                      SizedBox(width: 10),
-                      Text(
-                        'ESTADISTICA GENERAL',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF2C1E16),
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Resumen del Día',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2C1E16),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildKpiCard(
-                              'Ventas Totales',
-                              '\$145.50',
-                              Icons.attach_money,
-                              const Color(0xFF43A047),
-                              const Color(0xFFE8F5E9),
-                            ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ReporteStatCard(
+                            titulo: 'Ingresos hoy',
+                            valor: formatearMoneda(datos.hoy.totalDia),
+                            detalle:
+                                '${datos.hoy.cantidadVentasHoy + datos.hoy.cantidadRentasHoy} operaciones',
+                            icono: Icons.attach_money_rounded,
+                            color: adminVerde,
                           ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: _buildKpiCard(
-                              'Rentas Activas',
-                              '4',
-                              Icons.computer,
-                              const Color(0xFFB06B05),
-                              const Color(0xFFFFF3E0),
-                            ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ReporteStatCard(
+                            titulo: 'Ventas hoy',
+                            valor: formatearMoneda(datos.hoy.ingresosVentasHoy),
+                            detalle: '${datos.hoy.cantidadVentasHoy} ventas',
+                            icono: Icons.receipt_long_rounded,
+                            color: adminAmbar,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      _buildKpiCard(
-                        'Alertas Inventario',
-                        '2 Productos Bajos',
-                        Icons.warning_amber_rounded,
-                        const Color(0xFFD32F2F),
-                        const Color(0xFFFFEBEE),
-                        fullWidth: true,
-                      ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ReporteStatCard(
+                            titulo: 'Rentas hoy',
+                            valor: formatearMoneda(datos.hoy.ingresosRentasHoy),
+                            detalle: '${datos.hoy.cantidadRentasHoy} rentas',
+                            icono: Icons.computer_rounded,
+                            color: adminAzul,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ReporteStatCard(
+                            titulo: 'Rentas activas',
+                            valor: '${datos.general.sesionesRentaActivas}',
+                            detalle: 'En curso ahora',
+                            icono: Icons.play_circle_rounded,
+                            color: const Color(0xFFE65100),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ReporteStatCard(
+                            titulo: 'Stock bajo',
+                            valor: '${datos.general.productosStockBajo}',
+                            detalle: 'Productos con 5 o menos',
+                            icono: Icons.warning_amber_rounded,
+                            color: datos.general.productosStockBajo > 0
+                                ? adminRojo
+                                : adminVerde,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ReporteStatCard(
+                            titulo: 'Clientes',
+                            valor: '${datos.general.totalClientes}',
+                            detalle: 'Registrados',
+                            icono: Icons.people_alt_rounded,
+                            color: const Color(0xFF6A1B9A),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const _EncabezadoSeccion(
+                      titulo: 'Estado General',
+                      subtitulo: 'Acumulado histórico del cybercafé',
+                    ),
+                    const SizedBox(height: 14),
+                    ReporteSectionCard(
+                      titulo: 'Indicadores globales',
+                      icono: Icons.dashboard_customize_rounded,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final ancho = (constraints.maxWidth - 10) / 2;
+                          final items = <_MiniStat>[
+                            _MiniStat(
+                              titulo: 'Ingresos totales',
+                              valor: formatearMoneda(
+                                datos.general.totalIngresos,
+                              ),
+                              icono: Icons.savings_rounded,
+                              color: adminVerde,
+                            ),
+                            _MiniStat(
+                              titulo: 'Ventas registradas',
+                              valor: '${datos.general.cantidadVentas}',
+                              icono: Icons.shopping_bag_rounded,
+                              color: adminAmbar,
+                            ),
+                            _MiniStat(
+                              titulo: 'Rentas registradas',
+                              valor: '${datos.general.cantidadRentas}',
+                              icono: Icons.history_rounded,
+                              color: adminAzul,
+                            ),
+                            _MiniStat(
+                              titulo: 'Equipos totales',
+                              valor: '${datos.general.totalEquipos}',
+                              icono: Icons.devices_rounded,
+                              color: const Color(0xFF6A1B9A),
+                            ),
+                            _MiniStat(
+                              titulo: 'Disponibles',
+                              valor: '${datos.general.equiposDisponibles}',
+                              icono: Icons.check_circle_rounded,
+                              color: adminVerde,
+                            ),
+                            _MiniStat(
+                              titulo: 'Mantenimiento',
+                              valor:
+                                  '${datos.general.equiposEnMantenimientoOAveriados}',
+                              icono: Icons.build_circle_rounded,
+                              color: adminRojo,
+                            ),
+                            _MiniStat(
+                              titulo: 'Pagos pendientes hoy',
+                              valor: '${datos.hoy.rentasPendientesPagoHoy}',
+                              icono: Icons.pending_actions_rounded,
+                              color: const Color(0xFFE65100),
+                            ),
+                            _MiniStat(
+                              titulo: 'Ingresos por rentas',
+                              valor: formatearMoneda(
+                                datos.general.totalIngresosRentas,
+                              ),
+                              icono: Icons.payments_rounded,
+                              color: adminAmbar,
+                            ),
+                          ];
 
-                      const SizedBox(height: 30),
-                      const Text(
-                        'Rendimiento Semanal',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2C1E16),
-                        ),
+                          return Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              for (final item in items)
+                                SizedBox(width: ancho, child: item),
+                            ],
+                          );
+                        },
                       ),
-                      const SizedBox(height: 15),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                _buildBarraGrafica('Lun', 40),
-                                _buildBarraGrafica('Mar', 70),
-                                _buildBarraGrafica('Mie', 50),
-                                _buildBarraGrafica('Jue', 90, isMax: true),
-                                _buildBarraGrafica('Vie', 80),
-                                _buildBarraGrafica('Sab', 110),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 20),
+                    const _EncabezadoSeccion(
+                      titulo: 'Rendimiento Semanal',
+                      subtitulo: 'Últimos 7 días',
+                    ),
+                    const SizedBox(height: 14),
+                    _GraficaSemanal(semana: datos.semana),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildKpiCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-    Color bgColor, {
-    bool fullWidth = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+class _EncabezadoSeccion extends StatelessWidget {
+  const _EncabezadoSeccion({required this.titulo, required this.subtitulo});
+
+  final String titulo;
+  final String subtitulo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titulo,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: adminMarron,
           ),
-        ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitulo,
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
+    required this.titulo,
+    required this.valor,
+    required this.icono,
+    required this.color,
+  });
+
+  final String titulo;
+  final String valor;
+  final IconData icono;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(13),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
+          Icon(icono, color: color, size: 18),
+          const SizedBox(height: 7),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              valor,
+              maxLines: 1,
+              style: TextStyle(
+                color: color,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
               ),
-              if (fullWidth) const SizedBox(width: 10),
-              if (fullWidth)
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-            ],
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 2),
           Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: color,
+            titulo,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.black54,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          if (!fullWidth) const SizedBox(height: 5),
-          if (!fullWidth)
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildBarraGrafica(String dia, double alto, {bool isMax = false}) {
-    return Column(
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          width: 30,
-          height: alto,
-          decoration: BoxDecoration(
-            gradient: isMax
-                ? const LinearGradient(
-                    colors: [Color(0xFFB06B05), Color(0xFFE65100)],
-                  )
-                : LinearGradient(
-                    colors: [Colors.grey.shade300, Colors.grey.shade400],
+class _GraficaSemanal extends StatelessWidget {
+  const _GraficaSemanal({required this.semana});
+
+  final List<ResumenDiarioAdmin> semana;
+
+  @override
+  Widget build(BuildContext context) {
+    if (semana.isEmpty) {
+      return const ReporteSectionCard(
+        titulo: 'Sin datos semanales',
+        icono: Icons.bar_chart_rounded,
+        child: Text(
+          'No se pudo cargar el rendimiento de los últimos días.',
+          style: TextStyle(color: Colors.black54),
+        ),
+      );
+    }
+
+    final maximo = semana.fold<double>(
+      0,
+      (maximo, dia) => dia.totalDia > maximo ? dia.totalDia : maximo,
+    );
+    final totalSemana = semana.fold<double>(
+      0,
+      (total, dia) => total + dia.totalDia,
+    );
+    final hoy = DateTime.now();
+
+    return ReporteSectionCard(
+      titulo: 'Ingresos por día',
+      icono: Icons.bar_chart_rounded,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 150,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final dia in semana)
+                  Expanded(
+                    child: _BarraDia(
+                      dia: dia,
+                      maximo: maximo,
+                      esHoy:
+                          dia.fecha.year == hoy.year &&
+                          dia.fecha.month == hoy.month &&
+                          dia.fecha.day == hoy.day,
+                    ),
                   ),
-            borderRadius: BorderRadius.circular(8),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          dia,
-          style: TextStyle(
-            color: isMax ? const Color(0xFFB06B05) : Colors.grey,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+          Divider(color: Colors.grey.shade200, height: 24),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Total de la semana',
+                  style: TextStyle(
+                    color: adminMarron,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Text(
+                formatearMoneda(totalSemana),
+                style: const TextStyle(
+                  color: adminAmbar,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BarraDia extends StatelessWidget {
+  const _BarraDia({
+    required this.dia,
+    required this.maximo,
+    required this.esHoy,
+  });
+
+  final ResumenDiarioAdmin dia;
+  final double maximo;
+  final bool esHoy;
+
+  @override
+  Widget build(BuildContext context) {
+    final proporcion = maximo <= 0 ? 0.0 : dia.totalDia / maximo;
+    final alto = 18 + (proporcion * 92);
+    final color = esHoy ? adminAmbar : const Color(0xFFD7C4AE);
+
+    return Tooltip(
+      message: '${formatearFecha(dia.fecha)}\n${formatearMoneda(dia.totalDia)}',
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            dia.totalDia > 0 ? '\$${dia.totalDia.toStringAsFixed(0)}' : '',
+            style: TextStyle(
+              fontSize: 8,
+              color: esHoy ? adminAmbar : Colors.grey.shade600,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 3),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
+            width: 26,
+            height: alto,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: esHoy
+                    ? const [adminAmbar, Color(0xFFE65100)]
+                    : [color, color.withValues(alpha: 0.65)],
+              ),
+              borderRadius: BorderRadius.circular(7),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            diaCorto(dia.fecha),
+            style: TextStyle(
+              fontSize: 10,
+              color: esHoy ? adminAmbar : Colors.grey.shade600,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

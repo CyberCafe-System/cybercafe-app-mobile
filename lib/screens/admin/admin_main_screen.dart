@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../services/reporte_admin_service.dart';
 import 'admin_home_tab.dart';
 import 'admin_reportes_tab.dart';
 import 'admin_perfil_tab.dart';
@@ -12,6 +14,12 @@ class AdminMainScreen extends StatefulWidget {
 
 class _AdminMainScreenState extends State<AdminMainScreen> {
   int _pantallaActiva = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    ReporteAdminService.instance.limpiarCache();
+  }
 
   final List<Widget> _pantallas = [
     const AdminHomeTab(),

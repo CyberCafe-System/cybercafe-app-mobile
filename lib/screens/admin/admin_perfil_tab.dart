@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
 
 class AdminPerfilTab extends StatelessWidget {
@@ -49,17 +50,23 @@ class AdminPerfilTab extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 15),
-              const Text(
-                'Edwin Cruz',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  AuthService.instance.nombreMostrado,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-              const Text(
-                'Administrador',
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+              Text(
+                AuthService.instance.etiquetaRol,
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
               ),
             ],
           ),
@@ -104,6 +111,18 @@ class AdminPerfilTab extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
           child: Column(
             children: [
+              _buildInfoCard(
+                Icons.badge,
+                'Usuario',
+                AuthService.instance.usernameMostrado,
+              ),
+              const SizedBox(height: 10),
+              _buildInfoCard(
+                Icons.email,
+                'Correo',
+                AuthService.instance.correoMostrado,
+              ),
+              const SizedBox(height: 20),
               // Botón de Contraseña que muestra el mensaje de restricción web
               GestureDetector(
                 onTap: () {
@@ -172,6 +191,54 @@ class AdminPerfilTab extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildInfoCard(IconData icon, String titulo, String valor) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFFB06B05), size: 24),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  valor,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
