@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
 
 class PerfilScreen extends StatelessWidget {
@@ -69,17 +70,23 @@ class PerfilScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 15),
-                const Text(
-                  'Edwin Cruz',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    AuthService.instance.nombreMostrado,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                const Text(
-                  'Asistente de Equipos',
-                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                Text(
+                  AuthService.instance.etiquetaRol,
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
                 ),
               ],
             ),
@@ -102,9 +109,17 @@ class PerfilScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 15),
-                _buildInfoCard(Icons.badge, 'Usuario', 'edwin_asistente'),
+                _buildInfoCard(
+                  Icons.badge,
+                  'Usuario',
+                  AuthService.instance.usernameMostrado,
+                ),
                 const SizedBox(height: 10),
-                _buildInfoCard(Icons.email, 'Correo', 'edwin@coffeelan.com'),
+                _buildInfoCard(
+                  Icons.email,
+                  'Correo',
+                  AuthService.instance.correoMostrado,
+                ),
               ],
             ),
           ),
@@ -180,26 +195,30 @@ class PerfilScreen extends StatelessWidget {
         children: [
           Icon(icon, color: const Color(0xFFB06B05), size: 24),
           const SizedBox(width: 15),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                titulo,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              Text(
-                valor,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                Text(
+                  valor,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

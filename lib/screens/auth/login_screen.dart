@@ -45,6 +45,19 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      try {
+        await AuthService.instance.cargarPerfil();
+      } on AuthException catch (e) {
+        if (e.statusCode == 401) {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          _showError(e.message);
+          return;
+        }
+      } catch (_) {
+        // El perfil es opcional: si falla, se usa el username del token.
+      }
+
       final destination = rolId == 1
           ? const AdminMainScreen()
           : const DashboardAsistente();

@@ -8,7 +8,6 @@ class ApiConfig {
   //static const String _defaultBaseUrl = 'http://20.114.51.249/';
   static const String _defaultBaseUrl = 'http://127.0.0.1:8000/';
 
-
   /// URL base del backend (sin importar si termina en `/`).
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -22,7 +21,15 @@ class ApiConfig {
   static const String revisionesPath = '/revisiones';
   static const String detallesRentaPath = '/detalles-renta';
   static const String rentasPath = '/rentas';
+  static const String ventasPath = '/ventas';
+  static const String detallesVentaPath = '/detalles-venta';
+  static const String productosPath = '/productos';
+  static const String categoriasPath = '/categorias';
   static const String clientesPath = '/clientes';
+  static const String usuariosPath = '/usuarios';
+  static const String perfilActualPath = '/usuarios/me';
+  static const String reporteResumenGeneralPath = '/reportes/resumen-general';
+  static const String reporteDiarioPath = '/reportes/diario';
 
   /// Ruta del listado de productos.
   /// Configurable: `--dart-define=PRODUCTS_PATH=/api/products`.

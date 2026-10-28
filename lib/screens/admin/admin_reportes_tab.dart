@@ -1,7 +1,39 @@
 import 'package:flutter/material.dart';
 
-class AdminReportesTab extends StatelessWidget {
+import '../../models/reporte_admin.dart';
+import '../../services/reporte_admin_service.dart';
+import 'reportes/reporte_inventario_tab.dart';
+import 'reportes/reporte_rentas_tab.dart';
+import 'reportes/reporte_ventas_tab.dart';
+import 'reportes/reporte_widgets.dart';
+
+class AdminReportesTab extends StatefulWidget {
   const AdminReportesTab({super.key});
+
+  @override
+  State<AdminReportesTab> createState() => _AdminReportesTabState();
+}
+
+class _AdminReportesTabState extends State<AdminReportesTab> {
+  late Future<ReporteAdminData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ReporteAdminService.instance.cargarReportes();
+  }
+
+  Future<void> _recargar() async {
+    final future = ReporteAdminService.instance.cargarReportes(
+      forceRefresh: true,
+    );
+    setState(() => _future = future);
+    try {
+      await future;
+    } catch (_) {
+      // El FutureBuilder muestra el error y permite reintentar.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -9,16 +41,13 @@ class AdminReportesTab extends StatelessWidget {
       length: 3,
       child: Column(
         children: [
-          // Área superior
           Container(
-            color: const Color(0xFFF4F6F9),
+            color: adminFondo,
             child: SafeArea(
               bottom: false,
               child: Column(
                 children: [
                   const SizedBox(height: 15),
-
-                  // MENÚ CIRCULAR
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     height: 45,
@@ -27,7 +56,7 @@ class AdminReportesTab extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -37,13 +66,11 @@ class AdminReportesTab extends StatelessWidget {
                       indicatorSize: TabBarIndicatorSize.tab,
                       dividerColor: Colors.transparent,
                       indicator: BoxDecoration(
-                        color: const Color(0xFFB06B05),
+                        color: adminAmbar,
                         borderRadius: BorderRadius.circular(30),
                       ),
                       labelColor: Colors.white,
-                      unselectedLabelColor: const Color(
-                        0xFF2C1E16,
-                      ).withOpacity(0.6),
+                      unselectedLabelColor: adminMarron.withValues(alpha: 0.6),
                       labelStyle: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
@@ -59,20 +86,16 @@ class AdminReportesTab extends StatelessWidget {
               ),
             ),
           ),
-
-          // Etiqueta indicadora de pantalla actual
           Container(
             margin: const EdgeInsets.only(top: 20, left: 20, right: 20),
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
               color: const Color.fromARGB(255, 48, 27, 10),
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: const Color(0xFFB06B05).withOpacity(0.3),
-              ),
+              border: Border.all(color: adminAmbar.withValues(alpha: 0.3)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -81,7 +104,7 @@ class AdminReportesTab extends StatelessWidget {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.analytics, color: Color(0xFFB06B05)),
+                Icon(Icons.analytics, color: adminAmbar),
                 SizedBox(width: 10),
                 Text(
                   'SECCIÓN DE REPORTES',
@@ -94,206 +117,34 @@ class AdminReportesTab extends StatelessWidget {
               ],
             ),
           ),
-
           Expanded(
-            child: TabBarView(
-              children: [
-                _buildVistaReporte(
-                  context,
-                  'Ventas',
-                  ['Producto', 'Cant.', 'Total'],
-                  [
-                    ['Café Americano', '2', '\$3.00'],
-                    ['Hora PC', '1', '\$1.50'],
-                    ['Doritos', '3', '\$2.25'],
-                  ],
-                ),
-                _buildVistaReporte(
-                  context,
-                  'Rentas',
-                  ['Equipo', 'Tiempo', 'Estado'],
-                  [
-                    ['PC-01', '1h 30m', 'Finalizado'],
-                    ['Consola-02', '45m', 'Activo'],
-                    ['PC-04', '2h', 'Finalizado'],
-                  ],
-                ),
-                _buildVistaReporte(
-                  context,
-                  'Inventario',
-                  ['Producto', 'Stock', 'Precio'],
-                  [
-                    ['Coca Cola 600ml', '24', '\$1.00'],
-                    ['Galletas Oreo', '15', '\$0.75'],
-                    ['Café Grano', '5kg', '\$12.00'],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+            child: FutureBuilder<ReporteAdminData>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: adminAmbar),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return ReporteErrorState(
+                    mensaje: '${snapshot.error}',
+                    onRetry: _recargar,
+                  );
+                }
 
-  Widget _buildVistaReporte(
-    BuildContext context,
-    String tipo,
-    List<String> columnas,
-    List<List<String>> datos,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 45,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Buscar...',
-                      prefixIcon: Icon(Icons.search),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.only(top: 10),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 5,
+                final data = snapshot.data!;
+                return TabBarView(
+                  children: [
+                    ReporteVentasTab(ventas: data.ventas, onRefresh: _recargar),
+                    ReporteRentasTab(rentas: data.rentas, onRefresh: _recargar),
+                    ReporteInventarioTab(
+                      productos: data.productos,
+                      onRefresh: _recargar,
                     ),
                   ],
-                ),
-                child: const Icon(Icons.tune, color: Color(0xFFB06B05)),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF5252), Color(0xFFD32F2F)],
-                  ),
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.redAccent.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-                  onPressed: () {},
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 15,
-                      vertical: 15,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    child: Row(
-                      children: columnas
-                          .map(
-                            (col) => Expanded(
-                              child: Text(
-                                col,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2C1E16),
-                                ),
-                                textAlign: col == columnas.last
-                                    ? TextAlign.right
-                                    : TextAlign.left,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: datos.length,
-                      separatorBuilder: (context, index) =>
-                          Divider(color: Colors.grey.shade200, height: 1),
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 15,
-                          ),
-                          child: Row(
-                            children: datos[index].map((dato) {
-                              bool isLast = dato == datos[index].last;
-                              return Expanded(
-                                child: Text(
-                                  dato,
-                                  style: TextStyle(
-                                    fontWeight: isLast
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    color: isLast
-                                        ? const Color(0xFFB06B05)
-                                        : Colors.black87,
-                                  ),
-                                  textAlign: isLast
-                                      ? TextAlign.right
-                                      : TextAlign.left,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],

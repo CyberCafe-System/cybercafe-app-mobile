@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import '../models/usuario_perfil.dart';
 import 'token_storage.dart';
 
 /// Error de autenticación con un mensaje apto para mostrar al usuario.
@@ -44,6 +45,8 @@ class AuthService {
   int? _rolId;
   int? _usuarioId;
   String? _username;
+  UsuarioPerfil? _perfil;
+  Future<UsuarioPerfil?>? _perfilFuture;
 
   /// Se invoca cuando una petición protegida responde 401 (token inválido o
   /// expirado): la sesión local ya fue limpiada y hay que volver al login.
@@ -53,9 +56,44 @@ class AuthService {
   int? get rolId => _rolId;
   int? get usuarioId => _usuarioId;
   String? get username => _username;
+  UsuarioPerfil? get perfil => _perfil;
   bool get isAdmin => _rolId == 1;
   bool get isAsistente => _rolId == 3;
   bool get isAuthenticated => _accessToken != null;
+
+  /// Nombre real del usuario; si el perfil aún no cargó, usa el username.
+  String get nombreMostrado {
+    final nombre = _perfil?.nombre.trim();
+    if (nombre != null && nombre.isNotEmpty) return nombre;
+    final username = _username?.trim();
+    return username != null && username.isNotEmpty ? username : 'Usuario';
+  }
+
+  String get usernameMostrado {
+    final username = _perfil?.username.trim();
+    if (username != null && username.isNotEmpty) return username;
+    final delToken = _username?.trim();
+    return delToken != null && delToken.isNotEmpty ? delToken : 'No disponible';
+  }
+
+  String get correoMostrado {
+    final correo = _perfil?.correo.trim();
+    return correo != null && correo.isNotEmpty ? correo : 'No disponible';
+  }
+
+  /// Etiqueta legible del rol a partir del perfil o de los claims del token.
+  String get etiquetaRol {
+    switch (_perfil?.rolId ?? _rolId) {
+      case 1:
+        return 'Administrador';
+      case 2:
+        return 'Cajero';
+      case 3:
+        return 'Asistente de Equipos';
+      default:
+        return 'Usuario';
+    }
+  }
 
   /// Restaura la sesión guardada al arrancar la app.
   ///
@@ -68,6 +106,8 @@ class AuthService {
       _rolId = null;
       _usuarioId = null;
       _username = null;
+      _perfil = null;
+      _perfilFuture = null;
       return false;
     }
     _accessToken = token;
@@ -107,6 +147,8 @@ class AuthService {
 
     _accessToken = token;
     _applyTokenClaims(token);
+    _perfil = null;
+    _perfilFuture = null;
     await _storage.writeToken(token);
   }
 
@@ -223,11 +265,56 @@ class AuthService {
     }
   }
 
+  /// Carga y cachea el perfil del usuario autenticado (`GET /usuarios/me`).
+  ///
+  /// Si el endpoint falla por una causa distinta a 401, devuelve `null` para
+  /// que la UI use el username del token como respaldo.
+  Future<UsuarioPerfil?> cargarPerfil() async {
+    final perfil = _perfil;
+    if (perfil != null) return perfil;
+
+    final enCurso = _perfilFuture;
+    if (enCurso != null) return enCurso;
+
+    final future = _fetchPerfil();
+    _perfilFuture = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_perfilFuture, future)) {
+        _perfilFuture = null;
+      }
+    }
+  }
+
+  Future<UsuarioPerfil?> _fetchPerfil() async {
+    try {
+      final response = await getProtected(
+        ApiConfig.endpoint(ApiConfig.perfilActualPath),
+      );
+      if (response.statusCode != 200) return null;
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is! Map) return null;
+
+      final perfil = UsuarioPerfil.fromJson(Map<String, dynamic>.from(data));
+      _perfil = perfil;
+      return perfil;
+    } on AuthException catch (e) {
+      if (e.statusCode == 401) rethrow;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _clearSession() async {
     _accessToken = null;
     _rolId = null;
     _usuarioId = null;
     _username = null;
+    _perfil = null;
+    _perfilFuture = null;
     await _storage.deleteToken();
   }
 
@@ -265,6 +352,7 @@ class AuthService {
     _rolId = null;
     _usuarioId = null;
     _username = null;
+    _perfil = null;
   }
 
   Future<http.Response> _send(
