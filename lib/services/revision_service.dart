@@ -106,6 +106,79 @@ class RevisionService {
     return RevisionEquipo.fromJson(Map<String, dynamic>.from(data));
   }
 
+  Future<Map<int, String?>> getEquiposConRevisionPendiente({
+    int maxItems = 1000,
+  }) async {
+    if (maxItems < 1) {
+      throw ArgumentError.value(
+        maxItems,
+        'maxItems',
+        'Debe ser mayor o igual a 1',
+      );
+    }
+
+    final detalles = await _getAllList(
+      ApiConfig.detallesRentaPath,
+      'No se pudieron consultar las rentas pendientes de revisión.',
+      maxItems: maxItems,
+      queryParameters: {'estado': 'Pendiente Revision'},
+    );
+    if (detalles.isEmpty) return const {};
+
+    final rentasFuture = _getAllListOrEmpty(
+      ApiConfig.rentasPath,
+      'No se pudieron cargar las rentas.',
+      maxItems: maxItems,
+    );
+    final clientesFuture = _getAllListOrEmpty(
+      ApiConfig.clientesPath,
+      'No se pudieron cargar los clientes.',
+      maxItems: maxItems,
+    );
+
+    final rentas = await rentasFuture;
+    final clientes = await clientesFuture;
+
+    final clientePorRenta = <int, int>{};
+    for (final renta in rentas) {
+      final rentaId = _parseInt(renta['renta_id']);
+      final clienteId = _parseInt(renta['cliente_id']);
+      if (rentaId != null && clienteId != null) {
+        clientePorRenta[rentaId] = clienteId;
+      }
+    }
+
+    final nombrePorCliente = <int, String>{};
+    for (final cliente in clientes) {
+      final clienteId = _parseInt(cliente['cliente_id']);
+      final nombre = _componerNombreCliente(cliente);
+      if (clienteId != null && nombre != null) {
+        nombrePorCliente[clienteId] = nombre;
+      }
+    }
+
+    final pendientes = <int, String?>{};
+    final detallePorEquipo = <int, int>{};
+    for (final detalle in detalles) {
+      final equipoId = _parseInt(detalle['equipo_id']);
+      if (equipoId == null) continue;
+
+      final detalleId = _parseInt(detalle['detalle_renta_id']) ?? 0;
+      final detalleAnterior = detallePorEquipo[equipoId];
+      if (detalleAnterior != null && detalleId <= detalleAnterior) {
+        continue;
+      }
+
+      final rentaId = _parseInt(detalle['renta_id']);
+      final clienteId = rentaId == null ? null : clientePorRenta[rentaId];
+      detallePorEquipo[equipoId] = detalleId;
+      pendientes[equipoId] = clienteId == null
+          ? null
+          : nombrePorCliente[clienteId];
+    }
+    return pendientes;
+  }
+
   Future<List<RevisionHistorialItem>> getHistorialRevisiones({
     int maxItems = 1000,
   }) async {
@@ -132,18 +205,36 @@ class RevisionService {
       'No se pudieron cargar los equipos.',
       maxItems: maxItems,
     );
+    final rentasFuture = _getAllListOrEmpty(
+      ApiConfig.rentasPath,
+      'No se pudieron cargar las rentas.',
+      maxItems: maxItems,
+    );
+    final clientesFuture = _getAllListOrEmpty(
+      ApiConfig.clientesPath,
+      'No se pudieron cargar los clientes.',
+      maxItems: maxItems,
+    );
     final nombresFuture = _getNombresUsuarios();
 
     final revisionesJson = await revisionesFuture;
     final detallesJson = await detallesFuture;
     final equiposJson = await equiposFuture;
+    final rentasJson = await rentasFuture;
+    final clientesJson = await clientesFuture;
 
     final equipoPorDetalle = <int, int>{};
+    final rentaPorDetalle = <int, int>{};
     for (final detalle in detallesJson) {
       final detalleId = _parseInt(detalle['detalle_renta_id']);
       final equipoId = _parseInt(detalle['equipo_id']);
-      if (detalleId != null && equipoId != null) {
+      final rentaId = _parseInt(detalle['renta_id']);
+      if (detalleId == null) continue;
+      if (equipoId != null) {
         equipoPorDetalle[detalleId] = equipoId;
+      }
+      if (rentaId != null) {
+        rentaPorDetalle[detalleId] = rentaId;
       }
     }
 
@@ -156,6 +247,24 @@ class RevisionService {
       }
     }
 
+    final clientePorRenta = <int, int>{};
+    for (final renta in rentasJson) {
+      final rentaId = _parseInt(renta['renta_id']);
+      final clienteId = _parseInt(renta['cliente_id']);
+      if (rentaId != null && clienteId != null) {
+        clientePorRenta[rentaId] = clienteId;
+      }
+    }
+
+    final nombrePorCliente = <int, String>{};
+    for (final cliente in clientesJson) {
+      final clienteId = _parseInt(cliente['cliente_id']);
+      final nombre = _componerNombreCliente(cliente);
+      if (clienteId != null && nombre != null) {
+        nombrePorCliente[clienteId] = nombre;
+      }
+    }
+
     final nombresUsuarios = await nombresFuture;
 
     final historial = <RevisionHistorialItem>[];
@@ -163,6 +272,11 @@ class RevisionService {
       final revision = RevisionEquipo.fromJson(item);
       final equipoId = equipoPorDetalle[revision.detalleRentaId];
       final equipo = equipoId == null ? null : equiposPorId[equipoId];
+      final rentaId = rentaPorDetalle[revision.detalleRentaId];
+      final clienteId = rentaId == null ? null : clientePorRenta[rentaId];
+      final clienteNombre = clienteId == null
+          ? null
+          : nombrePorCliente[clienteId];
       historial.add(
         RevisionHistorialItem(
           revision: revision,
@@ -170,6 +284,7 @@ class RevisionService {
               equipo?.nombre ??
               (equipoId == null ? 'Equipo no disponible' : 'Equipo #$equipoId'),
           equipoTipo: equipo?.tipo,
+          clienteNombre: clienteNombre,
           usuarioNombre: _resolverNombreUsuario(
             revision.usuarioId,
             nombresUsuarios,
@@ -216,15 +331,20 @@ class RevisionService {
     String fallback, {
     int pageSize = 100,
     int maxItems = 1000,
+    Map<String, String>? queryParameters,
   }) async {
     final items = <Map<String, dynamic>>[];
     var offset = 0;
 
     while (items.length < maxItems) {
       final page = await _getList(
-        ApiConfig.endpoint(
-          path,
-        ).replace(queryParameters: {'offset': '$offset', 'limit': '$pageSize'}),
+        ApiConfig.endpoint(path).replace(
+          queryParameters: {
+            'offset': '$offset',
+            'limit': '$pageSize',
+            ...?queryParameters,
+          },
+        ),
         fallback,
       );
       items.addAll(page);
@@ -243,6 +363,7 @@ class RevisionService {
     String fallback, {
     int pageSize = 100,
     int maxItems = 1000,
+    Map<String, String>? queryParameters,
   }) async {
     try {
       return await _getAllList(
@@ -250,6 +371,7 @@ class RevisionService {
         fallback,
         pageSize: pageSize,
         maxItems: maxItems,
+        queryParameters: queryParameters,
       );
     } on AuthException catch (e) {
       if (e.statusCode == 401) rethrow;
@@ -297,6 +419,17 @@ class RevisionService {
     if (nombre != null) return nombre;
     if (_auth.usuarioId == usuarioId) return _auth.username;
     return null;
+  }
+
+  String? _componerNombreCliente(Map<String, dynamic> cliente) {
+    final nombre = cliente['nombre'];
+    final apellido = cliente['apellido'];
+    final partes = <String>[
+      if (nombre is String && nombre.trim().isNotEmpty) nombre.trim(),
+      if (apellido is String && apellido.trim().isNotEmpty) apellido.trim(),
+    ];
+    if (partes.isEmpty) return null;
+    return partes.join(' ');
   }
 
   dynamic _decode(List<int> bodyBytes, String fallback) {

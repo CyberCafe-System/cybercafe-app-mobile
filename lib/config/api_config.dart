@@ -19,6 +19,8 @@ class ApiConfig {
   static const String componentesPath = '/componentes';
   static const String revisionesPath = '/revisiones';
   static const String detallesRentaPath = '/detalles-renta';
+  static const String rentasPath = '/rentas';
+  static const String clientesPath = '/clientes';
 
   /// Ruta del listado de productos.
   /// Configurable: `--dart-define=PRODUCTS_PATH=/api/products`.

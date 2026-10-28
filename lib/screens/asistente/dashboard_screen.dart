@@ -3,7 +3,9 @@ import 'historial_revisiones_screen.dart';
 import 'inspeccion_screen.dart';
 import 'perfil_screen.dart';
 import '../../models/equipo.dart';
+import '../../services/auth_service.dart';
 import '../../services/equipo_service.dart';
+import '../../services/revision_service.dart';
 import '../../widgets/tarjeta_equipo.dart';
 
 class DashboardAsistente extends StatefulWidget {
@@ -15,21 +17,40 @@ class DashboardAsistente extends StatefulWidget {
 
 class _DashboardAsistenteState extends State<DashboardAsistente> {
   int _pantallaActiva = 0;
-  late Future<List<Equipo>> _equiposFuture;
+  late Future<_DashboardData> _dashboardFuture;
 
   @override
   void initState() {
     super.initState();
-    _equiposFuture = _cargarEquipos();
+    _dashboardFuture = _cargarDashboard();
   }
 
-  Future<List<Equipo>> _cargarEquipos() {
-    return EquipoService.instance.getEquipos(offset: 0, limit: 50);
+  Future<_DashboardData> _cargarDashboard() async {
+    final resultados = await Future.wait<Object>([
+      EquipoService.instance.getEquipos(offset: 0, limit: 50),
+      _cargarPendientesRevision(),
+    ]);
+
+    return _DashboardData(
+      equipos: resultados[0] as List<Equipo>,
+      pendientes: resultados[1] as Map<int, String?>,
+    );
+  }
+
+  Future<Map<int, String?>> _cargarPendientesRevision() async {
+    try {
+      return await RevisionService.instance.getEquiposConRevisionPendiente();
+    } on AuthException catch (e) {
+      if (e.statusCode == 401) rethrow;
+      return const {};
+    } catch (_) {
+      return const {};
+    }
   }
 
   void _recargarEquipos() {
     setState(() {
-      _equiposFuture = _cargarEquipos();
+      _dashboardFuture = _cargarDashboard();
     });
   }
 
@@ -201,8 +222,8 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: FutureBuilder<List<Equipo>>(
-              future: _equiposFuture,
+            child: FutureBuilder<_DashboardData>(
+              future: _dashboardFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -236,7 +257,9 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                   );
                 }
 
-                final equipos = snapshot.data ?? const <Equipo>[];
+                final data = snapshot.data;
+                final equipos = data?.equipos ?? const <Equipo>[];
+                final pendientes = data?.pendientes ?? const <int, String?>{};
                 if (equipos.isEmpty) {
                   return const Center(
                     child: Text('No hay equipos registrados.'),
@@ -257,6 +280,12 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                     final equipo = equipos[index];
                     return TarjetaEquipo(
                       equipo: equipo,
+                      pendienteRevision:
+                          equipo.equipoId != null &&
+                          pendientes.containsKey(equipo.equipoId),
+                      clienteNombre: equipo.equipoId == null
+                          ? null
+                          : pendientes[equipo.equipoId],
                       onTap: () async {
                         final equipoId = equipo.equipoId;
                         if (equipoId == null) return;
@@ -319,4 +348,11 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
       ),
     );
   }
+}
+
+class _DashboardData {
+  const _DashboardData({required this.equipos, required this.pendientes});
+
+  final List<Equipo> equipos;
+  final Map<int, String?> pendientes;
 }

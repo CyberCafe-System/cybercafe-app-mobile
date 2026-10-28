@@ -279,7 +279,12 @@ class _HistorialRevisionesScreenState extends State<HistorialRevisionesScreen> {
             _formatearFecha(item.revision.fechaRevision),
           ),
           const SizedBox(height: 8),
-          _buildDato(Icons.person_outline, _textoUsuario(item)),
+          _buildDato(
+            Icons.person_outline,
+            'Registrada por ${_textoUsuario(item)}',
+          ),
+          const SizedBox(height: 8),
+          _buildDato(Icons.group_outlined, _textoCliente(item)),
           const SizedBox(height: 12),
           const Divider(height: 1),
           const SizedBox(height: 10),
@@ -362,6 +367,14 @@ class _HistorialRevisionesScreenState extends State<HistorialRevisionesScreen> {
       case null:
         return Icons.devices_other;
     }
+  }
+
+  String _textoCliente(RevisionHistorialItem item) {
+    final nombre = item.clienteNombre;
+    if (nombre != null && nombre.trim().isNotEmpty) {
+      return 'Cliente: $nombre';
+    }
+    return 'Cliente no disponible';
   }
 
   String _textoUsuario(RevisionHistorialItem item) {
