@@ -26,6 +26,41 @@ void main() {
     });
   });
 
+  group('RevisionEquipo.fromJson', () {
+    test('incluye el nombre del inspector', () {
+      final revision = RevisionEquipo.fromJson({
+        'revision_equipo_id': 2,
+        'detalle_renta_id': 5,
+        'usuario_id': 5,
+        'usuario_nombre': 'juan',
+        'inspeccion_pasada': true,
+        'observaciones': 'Todo en orden',
+        'fecha_revision': '2026-10-28T01:25:01Z',
+      });
+
+      expect(revision.usuarioNombre, 'juan');
+    });
+
+    test('acepta usuario_nombre ausente o vacío', () {
+      final sinNombre = RevisionEquipo.fromJson({
+        'detalle_renta_id': 5,
+        'usuario_id': 5,
+        'inspeccion_pasada': true,
+        'observaciones': 'Todo en orden',
+      });
+      final vacio = RevisionEquipo.fromJson({
+        'detalle_renta_id': 5,
+        'usuario_id': 5,
+        'usuario_nombre': '   ',
+        'inspeccion_pasada': true,
+        'observaciones': 'Todo en orden',
+      });
+
+      expect(sinNombre.usuarioNombre, isNull);
+      expect(vacio.usuarioNombre, isNull);
+    });
+  });
+
   group('RevisionEquipo.toCreateJson', () {
     test('omite componentes_afectados cuando no se envían', () {
       const revision = RevisionEquipo(

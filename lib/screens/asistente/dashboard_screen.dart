@@ -172,6 +172,12 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                     ),
                   ),
                   const SizedBox(width: 10),
+                  IconButton(
+                    onPressed: _recargarEquipos,
+                    icon: const Icon(Icons.refresh),
+                    color: Colors.black,
+                    tooltip: 'Actualizar',
+                  ),
                   Image.asset('assets/img/logo_login.png', height: 40),
                 ],
               ),

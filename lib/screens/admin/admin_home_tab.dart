@@ -99,6 +99,12 @@ class _AdminHomeTabState extends State<AdminHomeTab> {
                     ),
                   ),
                   const SizedBox(width: 10),
+                  IconButton(
+                    onPressed: _recargar,
+                    icon: const Icon(Icons.refresh),
+                    color: Colors.white,
+                    tooltip: 'Actualizar',
+                  ),
                   Image.asset('assets/img/logo_login.png', height: 40),
                 ],
               ),

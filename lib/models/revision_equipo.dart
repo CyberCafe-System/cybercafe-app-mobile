@@ -27,6 +27,7 @@ class RevisionEquipo {
     this.revisionEquipoId,
     required this.detalleRentaId,
     this.usuarioId,
+    this.usuarioNombre,
     required this.inspeccionPasada,
     required this.observaciones,
     this.fechaRevision,
@@ -36,6 +37,7 @@ class RevisionEquipo {
   final int? revisionEquipoId;
   final int detalleRentaId;
   final int? usuarioId;
+  final String? usuarioNombre;
   final bool inspeccionPasada;
   final String observaciones;
   final DateTime? fechaRevision;
@@ -58,11 +60,15 @@ class RevisionEquipo {
     }
 
     final fechaRevision = json['fecha_revision'];
+    final usuarioNombre = json['usuario_nombre'];
 
     return RevisionEquipo(
       revisionEquipoId: _parseInt(json['revision_equipo_id']),
       detalleRentaId: detalleRentaId,
       usuarioId: _parseInt(json['usuario_id']),
+      usuarioNombre: usuarioNombre is String && usuarioNombre.trim().isNotEmpty
+          ? usuarioNombre.trim()
+          : null,
       inspeccionPasada: inspeccionPasada,
       observaciones: observaciones,
       fechaRevision: fechaRevision is String
@@ -92,6 +98,7 @@ class RevisionEquipo {
       if (revisionEquipoId != null) 'revision_equipo_id': revisionEquipoId,
       'detalle_renta_id': detalleRentaId,
       if (usuarioId != null) 'usuario_id': usuarioId,
+      if (usuarioNombre != null) 'usuario_nombre': usuarioNombre,
       'inspeccion_pasada': inspeccionPasada,
       'observaciones': observaciones,
       if (fechaRevision != null)

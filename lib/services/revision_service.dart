@@ -267,10 +267,9 @@ class RevisionService {
               (equipoId == null ? 'Equipo no disponible' : 'Equipo #$equipoId'),
           equipoTipo: equipo?.tipo,
           clienteNombre: clienteNombre,
-          usuarioNombre: _resolverNombreUsuario(
-            revision.usuarioId,
-            nombresUsuarios,
-          ),
+          usuarioNombre:
+              revision.usuarioNombre ??
+              _resolverNombreUsuario(revision.usuarioId, nombresUsuarios),
         ),
       );
     }
