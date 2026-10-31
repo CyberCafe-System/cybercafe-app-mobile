@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'historial_revisiones_screen.dart';
 import 'inspeccion_screen.dart';
 import 'perfil_screen.dart';
 import '../../models/equipo.dart';
 import '../../models/pendiente_revision.dart';
+import '../../models/renta_activa.dart';
 import '../../services/auth_service.dart';
 import '../../services/equipo_service.dart';
+import '../../services/renta_activa_service.dart';
 import '../../services/revision_service.dart';
 import '../../utils/equipo_filtros.dart';
 import '../../widgets/tarjeta_equipo.dart';
@@ -23,15 +27,22 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
   final TextEditingController _buscadorController = TextEditingController();
   String _busqueda = '';
   Set<FiltroEquipo> _filtrosSeleccionados = <FiltroEquipo>{};
+  DateTime _ahora = DateTime.now();
+  Timer? _reloj;
 
   @override
   void initState() {
     super.initState();
     _dashboardFuture = _cargarDashboard();
+    _reloj = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      setState(() => _ahora = DateTime.now());
+    });
   }
 
   @override
   void dispose() {
+    _reloj?.cancel();
     _buscadorController.dispose();
     super.dispose();
   }
@@ -40,11 +51,13 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
     final resultados = await Future.wait<Object>([
       EquipoService.instance.getEquipos(offset: 0, limit: 200),
       _cargarPendientesRevision(),
+      _cargarRentasActivas(),
     ]);
 
     return _DashboardData(
       equipos: resultados[0] as List<Equipo>,
       pendientes: resultados[1] as Map<int, PendienteRevision>,
+      rentasActivas: resultados[2] as Map<int, RentaActivaEquipo>,
     );
   }
 
@@ -59,8 +72,20 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
     }
   }
 
+  Future<Map<int, RentaActivaEquipo>> _cargarRentasActivas() async {
+    try {
+      return await RentaActivaService.instance.getRentasActivasPorEquipo();
+    } on AuthException catch (e) {
+      if (e.statusCode == 401) rethrow;
+      return const {};
+    } catch (_) {
+      return const {};
+    }
+  }
+
   void _recargarEquipos() {
     setState(() {
+      _ahora = DateTime.now();
       _dashboardFuture = _cargarDashboard();
     });
   }
@@ -363,6 +388,8 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                 final todosLosEquipos = data?.equipos ?? const <Equipo>[];
                 final pendientes =
                     data?.pendientes ?? const <int, PendienteRevision>{};
+                final rentasActivas =
+                    data?.rentasActivas ?? const <int, RentaActivaEquipo>{};
                 if (todosLosEquipos.isEmpty) {
                   return const Center(
                     child: Text('No hay equipos registrados.'),
@@ -390,30 +417,37 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 15,
                     mainAxisSpacing: 15,
-                    childAspectRatio: 1.1,
+                    childAspectRatio: 0.78,
                   ),
                   itemCount: equipos.length,
                   itemBuilder: (context, index) {
                     final equipo = equipos[index];
-                    final pendiente = equipo.equipoId == null
+                    final equipoId = equipo.equipoId;
+                    final pendiente = equipoId == null
                         ? null
-                        : pendientes[equipo.equipoId];
+                        : pendientes[equipoId];
+                    final rentaActiva = equipoId == null
+                        ? null
+                        : rentasActivas[equipoId];
                     return TarjetaEquipo(
                       equipo: equipo,
                       pendienteRevision: pendiente != null,
                       clienteNombre: pendiente?.clienteNombre,
+                      rentaActiva: rentaActiva,
+                      ahora: _ahora,
                       onTap: () async {
-                        final equipoId = equipo.equipoId;
                         if (equipoId == null) return;
                         if (pendiente == null) {
+                          final mensaje = rentaActiva == null
+                              ? 'Este equipo no tiene una renta pendiente '
+                                    'de revisión.'
+                              : 'El equipo está en uso. Podrás inspeccionarlo '
+                                    'cuando finalice la renta.';
                           ScaffoldMessenger.of(context)
                             ..hideCurrentSnackBar()
                             ..showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Este equipo no tiene una renta pendiente '
-                                  'de revisión.',
-                                ),
+                              SnackBar(
+                                content: Text(mensaje),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -483,10 +517,15 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
 }
 
 class _DashboardData {
-  const _DashboardData({required this.equipos, required this.pendientes});
+  const _DashboardData({
+    required this.equipos,
+    required this.pendientes,
+    required this.rentasActivas,
+  });
 
   final List<Equipo> equipos;
   final Map<int, PendienteRevision> pendientes;
+  final Map<int, RentaActivaEquipo> rentasActivas;
 }
 
 class _FiltrosEquipoSheet extends StatefulWidget {
