@@ -7,6 +7,7 @@ import '../../models/pendiente_revision.dart';
 import '../../services/auth_service.dart';
 import '../../services/equipo_service.dart';
 import '../../services/revision_service.dart';
+import '../../utils/equipo_filtros.dart';
 import '../../widgets/tarjeta_equipo.dart';
 
 class DashboardAsistente extends StatefulWidget {
@@ -19,11 +20,20 @@ class DashboardAsistente extends StatefulWidget {
 class _DashboardAsistenteState extends State<DashboardAsistente> {
   int _pantallaActiva = 0;
   late Future<_DashboardData> _dashboardFuture;
+  final TextEditingController _buscadorController = TextEditingController();
+  String _busqueda = '';
+  Set<FiltroEquipo> _filtrosSeleccionados = <FiltroEquipo>{};
 
   @override
   void initState() {
     super.initState();
     _dashboardFuture = _cargarDashboard();
+  }
+
+  @override
+  void dispose() {
+    _buscadorController.dispose();
+    super.dispose();
   }
 
   Future<_DashboardData> _cargarDashboard() async {
@@ -53,6 +63,54 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
     setState(() {
       _dashboardFuture = _cargarDashboard();
     });
+  }
+
+  void _actualizarBusqueda(String value) {
+    setState(() => _busqueda = value);
+  }
+
+  void _limpiarBusquedaYFiltros() {
+    _buscadorController.clear();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busqueda = '';
+      _filtrosSeleccionados = <FiltroEquipo>{};
+    });
+  }
+
+  Future<void> _abrirFiltros() async {
+    final seleccionados = await showModalBottomSheet<Set<FiltroEquipo>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) =>
+          _FiltrosEquipoSheet(seleccionadosIniciales: _filtrosSeleccionados),
+    );
+
+    if (seleccionados == null || !mounted) return;
+    setState(() => _filtrosSeleccionados = seleccionados);
+  }
+
+  Widget _buildSinResultados() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.search_off, size: 48, color: Colors.black38),
+          const SizedBox(height: 10),
+          const Text(
+            'No hay equipos que coincidan con la búsqueda o los filtros.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.black54),
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: _limpiarBusquedaYFiltros,
+            child: const Text('Limpiar búsqueda y filtros'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -202,41 +260,61 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                       ),
                     ],
                   ),
-                  child: const TextField(
+                  child: TextField(
+                    controller: _buscadorController,
+                    onChanged: _actualizarBusqueda,
+                    textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: 'Buscar equipo...',
-                      prefixIcon: Icon(Icons.search, color: Colors.black),
+                      prefixIcon: const Icon(Icons.search, color: Colors.black),
+                      suffixIcon: _busqueda.trim().isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Limpiar búsqueda',
+                              onPressed: () {
+                                _buscadorController.clear();
+                                _actualizarBusqueda('');
+                              },
+                              icon: const Icon(Icons.close, size: 18),
+                            ),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.only(top: 10),
+                      contentPadding: const EdgeInsets.only(top: 10),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 15,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 5,
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  children: [
-                    Text(
-                      'Filtrar',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(width: 5),
-                    Icon(Icons.tune, size: 20),
-                  ],
+              GestureDetector(
+                onTap: _abrirFiltros,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _filtrosSeleccionados.isEmpty
+                        ? Colors.white
+                        : const Color(0xFFFFF1DF),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        _filtrosSeleccionados.isEmpty
+                            ? 'Filtrar'
+                            : 'Filtrar (${_filtrosSeleccionados.length})',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 5),
+                      const Icon(Icons.tune, size: 20),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -282,13 +360,27 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                 }
 
                 final data = snapshot.data;
-                final equipos = data?.equipos ?? const <Equipo>[];
+                final todosLosEquipos = data?.equipos ?? const <Equipo>[];
                 final pendientes =
                     data?.pendientes ?? const <int, PendienteRevision>{};
-                if (equipos.isEmpty) {
+                if (todosLosEquipos.isEmpty) {
                   return const Center(
                     child: Text('No hay equipos registrados.'),
                   );
+                }
+
+                final equipos = filtrarEquipos(
+                  todosLosEquipos,
+                  busqueda: _busqueda,
+                  filtros: _filtrosSeleccionados,
+                  estaPendienteRevision: (equipo) {
+                    final equipoId = equipo.equipoId;
+                    return equipoId != null && pendientes.containsKey(equipoId);
+                  },
+                );
+
+                if (equipos.isEmpty) {
+                  return _buildSinResultados();
                 }
 
                 return GridView.builder(
@@ -395,4 +487,159 @@ class _DashboardData {
 
   final List<Equipo> equipos;
   final Map<int, PendienteRevision> pendientes;
+}
+
+class _FiltrosEquipoSheet extends StatefulWidget {
+  const _FiltrosEquipoSheet({required this.seleccionadosIniciales});
+
+  final Set<FiltroEquipo> seleccionadosIniciales;
+
+  @override
+  State<_FiltrosEquipoSheet> createState() => _FiltrosEquipoSheetState();
+}
+
+class _FiltrosEquipoSheetState extends State<_FiltrosEquipoSheet> {
+  late Set<FiltroEquipo> _seleccionados;
+
+  @override
+  void initState() {
+    super.initState();
+    _seleccionados = Set<FiltroEquipo>.of(widget.seleccionadosIniciales);
+  }
+
+  void _alternar(FiltroEquipo filtro) {
+    setState(() {
+      if (!_seleccionados.remove(filtro)) {
+        _seleccionados.add(filtro);
+      }
+    });
+  }
+
+  IconData _icono(FiltroEquipo filtro) {
+    return switch (filtro) {
+      FiltroEquipo.disponible => Icons.check_circle_outline,
+      FiltroEquipo.danios => Icons.warning_amber_rounded,
+      FiltroEquipo.mantenimiento => Icons.build_circle_outlined,
+      FiltroEquipo.pendienteRevision => Icons.assignment_late_outlined,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1DF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.tune, color: Color(0xFFB06B05)),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Filtrar equipos',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF2C1E16),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Puedes seleccionar más de una categoría.',
+                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Cerrar',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final filtro in FiltroEquipo.values)
+                  FilterChip(
+                    selected: _seleccionados.contains(filtro),
+                    onSelected: (_) => _alternar(filtro),
+                    avatar: Icon(
+                      _icono(filtro),
+                      size: 18,
+                      color: _seleccionados.contains(filtro)
+                          ? const Color(0xFFB06B05)
+                          : Colors.black54,
+                    ),
+                    label: Text(filtro.etiqueta),
+                    labelStyle: TextStyle(
+                      color: _seleccionados.contains(filtro)
+                          ? const Color(0xFFB06B05)
+                          : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    selectedColor: const Color(0xFFFFF1DF),
+                    checkmarkColor: const Color(0xFFB06B05),
+                    side: BorderSide(
+                      color: _seleccionados.contains(filtro)
+                          ? const Color(0xFFB06B05)
+                          : Colors.black12,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => setState(_seleccionados.clear),
+                  child: const Text('Limpiar'),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB06B05),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context, _seleccionados),
+                    child: const Text(
+                      'Aplicar filtros',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
