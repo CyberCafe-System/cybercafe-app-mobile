@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cybercafe_app_mobile/services/auth_service.dart';
 import 'package:cybercafe_app_mobile/services/token_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,4 +57,85 @@ void main() {
       expect(auth.accessToken, 'token-valido');
     });
   });
+
+  group('AuthService.verificarSesionActiva', () {
+    test('activo false cierra la sesión y notifica una sola vez', () async {
+      final storage = InMemoryTokenStorage();
+      await storage.writeToken('token-valido');
+
+      final auth = AuthService(
+        client: MockClient(
+          (_) async =>
+              http.Response(jsonEncode(_perfilJson(activo: false)), 200),
+        ),
+        storage: storage,
+      );
+      var sesionesExpiradas = 0;
+      auth.onSessionExpired = () => sesionesExpiradas++;
+
+      expect(await auth.restoreSession(), isTrue);
+      expect(await auth.verificarSesionActiva(), isFalse);
+      expect(sesionesExpiradas, 1);
+      expect(auth.accessToken, isNull);
+      expect(await storage.readToken(), isNull);
+
+      expect(await auth.verificarSesionActiva(), isFalse);
+      expect(sesionesExpiradas, 1);
+    });
+
+    test('activo true conserva la sesión y actualiza el perfil', () async {
+      final storage = InMemoryTokenStorage();
+      await storage.writeToken('token-valido');
+
+      final auth = AuthService(
+        client: MockClient(
+          (_) async =>
+              http.Response(jsonEncode(_perfilJson(activo: true)), 200),
+        ),
+        storage: storage,
+      );
+      var sesionesExpiradas = 0;
+      auth.onSessionExpired = () => sesionesExpiradas++;
+
+      expect(await auth.restoreSession(), isTrue);
+      expect(await auth.verificarSesionActiva(), isTrue);
+      expect(sesionesExpiradas, 0);
+      expect(auth.accessToken, 'token-valido');
+      expect(await storage.readToken(), 'token-valido');
+      expect(auth.perfil?.activo, isTrue);
+      expect(auth.perfil?.nombre, 'Edwin Cruz');
+    });
+
+    test('un fallo de red no cierra la sesión', () async {
+      final storage = InMemoryTokenStorage();
+      await storage.writeToken('token-valido');
+
+      final auth = AuthService(
+        client: MockClient((_) async => throw http.ClientException('sin red')),
+        storage: storage,
+      );
+      var sesionesExpiradas = 0;
+      auth.onSessionExpired = () => sesionesExpiradas++;
+
+      expect(await auth.restoreSession(), isTrue);
+      await expectLater(
+        auth.verificarSesionActiva(),
+        throwsA(isA<AuthException>()),
+      );
+
+      expect(sesionesExpiradas, 0);
+      expect(auth.accessToken, 'token-valido');
+      expect(await storage.readToken(), 'token-valido');
+    });
+  });
 }
+
+Map<String, dynamic> _perfilJson({required bool activo}) => {
+  'usuario_id': 7,
+  'rol_id': 3,
+  'nombre': 'Edwin Cruz',
+  'username': 'edwin_asistente',
+  'correo': 'edwin@coffeelan.com',
+  'is_superuser': false,
+  'activo': activo,
+};

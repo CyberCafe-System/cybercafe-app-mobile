@@ -5,6 +5,7 @@ class UsuarioPerfil {
     required this.nombre,
     required this.username,
     required this.correo,
+    required this.activo,
   });
 
   final int usuarioId;
@@ -12,14 +13,17 @@ class UsuarioPerfil {
   final String nombre;
   final String username;
   final String correo;
+  final bool activo;
 
   factory UsuarioPerfil.fromJson(Map<String, dynamic> json) {
+    final activo = json['activo'];
     return UsuarioPerfil(
       usuarioId: _parseInt(json['usuario_id'], 'usuario_id'),
       rolId: _parseInt(json['rol_id'], 'rol_id'),
       nombre: _parseString(json['nombre'], 'nombre'),
       username: _parseString(json['username'], 'username'),
       correo: _parseString(json['correo'], 'correo'),
+      activo: activo is bool ? activo : true,
     );
   }
 }

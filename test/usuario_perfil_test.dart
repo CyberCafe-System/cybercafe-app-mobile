@@ -17,6 +17,7 @@ void main() {
         'username': 'edwin_asistente',
         'correo': 'edwin@coffeelan.com',
         'password': 'no-debe-usarse',
+        'activo': true,
       });
 
       expect(perfil.usuarioId, 7);
@@ -24,6 +25,32 @@ void main() {
       expect(perfil.nombre, 'Edwin Cruz');
       expect(perfil.username, 'edwin_asistente');
       expect(perfil.correo, 'edwin@coffeelan.com');
+      expect(perfil.activo, isTrue);
+    });
+
+    test('detecta un usuario desactivado', () {
+      final perfil = UsuarioPerfil.fromJson({
+        'usuario_id': 8,
+        'rol_id': 2,
+        'nombre': 'Cajero',
+        'username': 'cajero',
+        'correo': 'cajero@coffeelan.com',
+        'activo': false,
+      });
+
+      expect(perfil.activo, isFalse);
+    });
+
+    test('asume activo si la API no envía el campo', () {
+      final perfil = UsuarioPerfil.fromJson({
+        'usuario_id': 9,
+        'rol_id': 1,
+        'nombre': 'Admin',
+        'username': 'admin',
+        'correo': 'admin@coffeelan.com',
+      });
+
+      expect(perfil.activo, isTrue);
     });
   });
 
