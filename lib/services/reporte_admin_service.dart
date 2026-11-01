@@ -45,6 +45,10 @@ class ReporteAdminService {
         ApiConfig.usuariosPath,
         'No se pudieron cargar los usuarios.',
       ),
+      _getAllListOrEmpty(
+        ApiConfig.detallesRentaPath,
+        'No se pudieron cargar los estados de las rentas.',
+      ),
     ]);
 
     final ventasJson = resultados[0];
@@ -54,6 +58,7 @@ class ReporteAdminService {
     final categoriasJson = resultados[4];
     final equiposJson = resultados[5];
     final usuariosJson = resultados[6];
+    final detallesRentaJson = resultados[7];
 
     final clientesPorId = <int, ClienteReporte>{};
     for (final item in clientesJson) {
@@ -110,10 +115,25 @@ class ReporteAdminService {
     }
     ventas.sort(_compararFechaVenta);
 
+    final estadosPorRenta = <int, Set<EstadoRentaReporte>>{};
+    for (final item in detallesRentaJson) {
+      final rentaId = _parseInt(item['renta_id']);
+      if (rentaId == null) continue;
+      final estado = EstadoRentaReporte.fromValue(item['estado']);
+      estadosPorRenta.putIfAbsent(rentaId, () => {}).add(estado);
+    }
+
     final rentas = <RentaReporte>[];
     for (final item in rentasJson) {
       final base = RentaReporte.fromJson(item);
-      rentas.add(_enriquecerRenta(base, clientesPorId, usuariosPorId));
+      rentas.add(
+        _enriquecerRenta(
+          base,
+          clientesPorId,
+          usuariosPorId,
+          estadosRenta: estadosPorRenta[base.rentaId] ?? const {},
+        ),
+      );
     }
     rentas.sort(_compararFechaRenta);
 
@@ -184,10 +204,18 @@ class ReporteAdminService {
     if (rentaJson is! Map) {
       throw AuthException('El servidor devolvió una respuesta inesperada.');
     }
+    var estadosRenta = const <EstadoRentaReporte>{};
+    for (final item in data.rentas) {
+      if (item.rentaId == rentaId) {
+        estadosRenta = item.estadosRenta;
+        break;
+      }
+    }
     final renta = _enriquecerRenta(
       RentaReporte.fromJson(Map<String, dynamic>.from(rentaJson)),
       data.clientesPorId,
       data.usuariosPorId,
+      estadosRenta: estadosRenta,
     );
 
     final detallesJson = json['detalles'];
@@ -309,8 +337,9 @@ class ReporteAdminService {
   RentaReporte _enriquecerRenta(
     RentaReporte base,
     Map<int, ClienteReporte> clientes,
-    Map<int, String> usuarios,
-  ) {
+    Map<int, String> usuarios, {
+    Set<EstadoRentaReporte> estadosRenta = const {},
+  }) {
     final cliente = base.clienteId == null ? null : clientes[base.clienteId];
     final cajero = _nombreUsuario(base.usuarioId, usuarios);
     return RentaReporte(
@@ -322,6 +351,7 @@ class ReporteAdminService {
       cajeroNombre: cajero,
       total: base.total,
       estadoPago: base.estadoPago,
+      estadosRenta: estadosRenta,
     );
   }
 

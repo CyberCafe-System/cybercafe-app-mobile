@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/reporte_admin.dart';
 import '../../../services/reporte_pdf_service.dart';
+import '../../../utils/busqueda_reportes.dart';
 import '../../../utils/reporte_formatters.dart';
 import 'reporte_widgets.dart';
 import 'venta_detalle_screen.dart';
@@ -32,17 +33,10 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
   }
 
   List<VentaReporte> get _filtradas {
-    final consulta = _consulta.trim().toLowerCase();
-    if (consulta.isEmpty) return widget.ventas;
-    return widget.ventas.where((venta) {
-      final texto = [
-        'venta ${venta.ventaId ?? ''}',
-        venta.clienteMostrado,
-        venta.cajeroMostrado,
-        formatearFechaHora(venta.fecha),
-      ].join(' ').toLowerCase();
-      return texto.contains(consulta);
-    }).toList();
+    if (_consulta.trim().isEmpty) return widget.ventas;
+    return widget.ventas
+        .where((venta) => coincideVenta(venta, _consulta))
+        .toList();
   }
 
   Future<void> _exportarPdf() async {
@@ -90,7 +84,7 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
         children: [
           ReporteActionBar(
             controller: _busqueda,
-            hintText: 'Buscar por cliente, venta o cajero...',
+            hintText: 'Cliente, ID o cajero...',
             onChanged: (valor) => setState(() => _consulta = valor),
             onRefresh: () => widget.onRefresh(),
             onPdf: _exportarPdf,
@@ -129,13 +123,16 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
           ),
           const SizedBox(height: 18),
           if (ventas.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 300,
               child: ReporteEmptyState(
                 icono: Icons.receipt_long_rounded,
-                titulo: 'Sin ventas registradas',
-                mensaje:
-                    'Cuando se registre una venta aparecerá aquí con el cliente y su total.',
+                titulo: _consulta.trim().isEmpty
+                    ? 'Sin ventas registradas'
+                    : 'Sin resultados',
+                mensaje: _consulta.trim().isEmpty
+                    ? 'Cuando se registre una venta aparecerá aquí con el cliente y su total.'
+                    : 'No hay ventas que coincidan con "${_consulta.trim()}".',
               ),
             )
           else

@@ -50,6 +50,20 @@ class ReporteActionBar extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: hintText,
                 prefixIcon: const Icon(Icons.search, color: adminAmbar),
+                suffixIcon: controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Limpiar búsqueda',
+                        onPressed: () {
+                          controller.clear();
+                          onChanged('');
+                        },
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.black45,
+                          size: 20,
+                        ),
+                      ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),

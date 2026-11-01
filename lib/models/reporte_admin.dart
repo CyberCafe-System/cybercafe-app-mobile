@@ -256,6 +256,7 @@ class RentaReporte {
     this.cajeroNombre,
     required this.total,
     required this.estadoPago,
+    this.estadosRenta = const <EstadoRentaReporte>{},
   });
 
   final int? rentaId;
@@ -266,6 +267,7 @@ class RentaReporte {
   final String? cajeroNombre;
   final double total;
   final EstadoPagoReporte estadoPago;
+  final Set<EstadoRentaReporte> estadosRenta;
 
   String get clienteMostrado {
     final nombreCliente = cliente?.nombreCompleto;

@@ -63,6 +63,10 @@ void main() {
       expect(data.ventas.single.total, 11.3);
       expect(data.rentas.single.clienteMostrado, 'Ana Pérez');
       expect(data.rentas.single.estadoPago, EstadoPagoReporte.pagado);
+      expect(
+        data.rentas.single.estadosRenta,
+        contains(EstadoRentaReporte.finalizada),
+      );
       expect(data.productos.single.categoriaMostrada, 'Bebidas');
       expect(data.productos.single.stockBajo, isTrue);
       expect(data.totalVentas, 11.3);
@@ -254,6 +258,22 @@ Future<http.Response> _responder(http.Request request) async {
         'usuario_id': 2,
         'total': '3.50',
         'estado_de_pago': 'Pagado',
+      },
+    ]);
+  }
+
+  if (request.method == 'GET' && path == '/detalles-renta') {
+    return _json([
+      {
+        'detalle_renta_id': 40,
+        'renta_id': 20,
+        'equipo_id': 5,
+        'hora_inicio': '2026-10-27T15:00:00Z',
+        'tiempo_de_renta': 60,
+        'tiempo_agregado': 15,
+        'hora_fin': '2026-10-27T16:15:00Z',
+        'subtotal': '3.50',
+        'estado': 'Finalizada',
       },
     ]);
   }
