@@ -88,6 +88,13 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
       );
   }
 
+  String _numeroSerieMostrado(Componente componente) {
+    final numeroSerie = componente.numeroSerie?.trim();
+    return numeroSerie == null || numeroSerie.isEmpty
+        ? 'No registrado'
+        : numeroSerie;
+  }
+
   Future<void> _mostrarModalReporte(Componente componente) async {
     final componenteId = componente.componenteId;
     if (componenteId == null) return;
@@ -143,31 +150,46 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.redAccent.withOpacity(0.1),
-                                shape: BoxShape.circle,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.redAccent,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Reportar ${componente.nombre}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.warning_amber_rounded,
-                                color: Colors.redAccent,
-                                size: 28,
+                              const SizedBox(height: 2),
+                              Text(
+                                'N.º de serie: ${_numeroSerieMostrado(componente)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 15),
-                            Text(
-                              'Reportar ${componente.nombre}',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         IconButton(
                           icon: const Icon(
@@ -686,6 +708,29 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                           fontSize: 12,
                                           color: Colors.grey.shade600,
                                         ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.qr_code_2_rounded,
+                                            size: 13,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              'N.º de serie: ${_numeroSerieMostrado(componente)}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey.shade700,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
