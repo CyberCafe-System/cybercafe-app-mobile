@@ -11,6 +11,46 @@ class ComponenteService {
 
   final AuthService _auth;
 
+  Future<List<Componente>> getComponentes({
+    int maxItems = 1000,
+    bool? activo,
+  }) async {
+    if (maxItems < 1) {
+      throw ArgumentError.value(
+        maxItems,
+        'maxItems',
+        'Debe ser mayor o igual a 1',
+      );
+    }
+
+    final componentes = <Componente>[];
+    var offset = 0;
+    const pageSize = 100;
+
+    while (componentes.length < maxItems) {
+      final uri = ApiConfig.endpoint(ApiConfig.componentesPath).replace(
+        queryParameters: {
+          'offset': '$offset',
+          'limit': '$pageSize',
+          if (activo != null) 'activo': '$activo',
+        },
+      );
+      final pagina = await _getComponentes(
+        uri,
+        'No se pudieron cargar los componentes.',
+        mensajePermisos: 'No tienes permisos para consultar componentes.',
+      );
+      componentes.addAll(pagina);
+      if (pagina.length < pageSize) break;
+      offset += pageSize;
+    }
+
+    if (componentes.length > maxItems) {
+      return componentes.sublist(0, maxItems);
+    }
+    return componentes;
+  }
+
   Future<List<Componente>> getComponentesPorEquipo(int equipoId) async {
     if (equipoId < 1) {
       throw ArgumentError.value(
@@ -23,35 +63,11 @@ class ComponenteService {
     final uri = ApiConfig.endpoint(
       '${ApiConfig.equiposPath}/$equipoId/componentes',
     );
-    final response = await _auth.getProtected(uri);
-
-    if (response.statusCode == 404) {
-      throw AuthException('Equipo no encontrado.', statusCode: 404);
-    }
-    if (response.statusCode != 200) {
-      throw _errorFor(
-        response.statusCode,
-        response.bodyBytes,
-        'No se pudieron cargar los componentes.',
-      );
-    }
-
-    final data = _decode(
-      response.bodyBytes,
+    return _getComponentes(
+      uri,
       'No se pudieron cargar los componentes.',
+      mensajeNoEncontrado: 'Equipo no encontrado.',
     );
-    if (data is! List) {
-      throw AuthException('El servidor devolvió una respuesta inesperada.');
-    }
-
-    final componentes = <Componente>[];
-    for (final item in data) {
-      if (item is! Map) {
-        throw AuthException('El servidor devolvió una respuesta inesperada.');
-      }
-      componentes.add(Componente.fromJson(Map<String, dynamic>.from(item)));
-    }
-    return componentes;
   }
 
   Future<Componente> actualizarEstado(
@@ -92,6 +108,41 @@ class ComponenteService {
     return Componente.fromJson(Map<String, dynamic>.from(data));
   }
 
+  Future<List<Componente>> _getComponentes(
+    Uri uri,
+    String fallback, {
+    String? mensajeNoEncontrado,
+    String? mensajePermisos,
+  }) async {
+    final response = await _auth.getProtected(uri);
+
+    if (response.statusCode == 404 && mensajeNoEncontrado != null) {
+      throw AuthException(mensajeNoEncontrado, statusCode: 404);
+    }
+    if (response.statusCode != 200) {
+      throw _errorFor(
+        response.statusCode,
+        response.bodyBytes,
+        fallback,
+        mensajePermisos: mensajePermisos,
+      );
+    }
+
+    final data = _decode(response.bodyBytes, fallback);
+    if (data is! List) {
+      throw AuthException('El servidor devolvió una respuesta inesperada.');
+    }
+
+    final componentes = <Componente>[];
+    for (final item in data) {
+      if (item is! Map) {
+        throw AuthException('El servidor devolvió una respuesta inesperada.');
+      }
+      componentes.add(Componente.fromJson(Map<String, dynamic>.from(item)));
+    }
+    return componentes;
+  }
+
   dynamic _decode(List<int> bodyBytes, String fallback) {
     try {
       return jsonDecode(utf8.decode(bodyBytes));
@@ -103,11 +154,12 @@ class ComponenteService {
   AuthException _errorFor(
     int statusCode,
     List<int> bodyBytes,
-    String fallback,
-  ) {
+    String fallback, {
+    String? mensajePermisos,
+  }) {
     if (statusCode == 403) {
       return AuthException(
-        'No tienes permisos para gestionar componentes.',
+        mensajePermisos ?? 'No tienes permisos para gestionar componentes.',
         statusCode: statusCode,
       );
     }

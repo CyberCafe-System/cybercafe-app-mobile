@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../../services/auth_service.dart';
+import '../../widgets/session_watcher.dart';
 import '../admin/admin_main_screen.dart';
 import '../asistente/dashboard_screen.dart';
 import 'success_auth_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.mensajeSesion});
+
+  final String? mensajeSesion;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -17,6 +20,34 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final mensaje = widget.mensajeSesion;
+    if (mensaje != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showError(mensaje);
+      });
+    }
+  }
+
+  Widget _conSessionWatcher(Widget child) {
+    return SessionWatcher(
+      onSessionExpired: (context) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const LoginScreen(
+              mensajeSesion: 'Tu sesión finalizó. Inicia sesión nuevamente.',
+            ),
+          ),
+          (route) => false,
+        );
+      },
+      child: child,
+    );
+  }
 
   Future<void> _loginProcess() async {
     FocusScope.of(context).unfocus();
@@ -59,8 +90,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final destination = rolId == 1
-          ? const AdminMainScreen()
-          : const DashboardAsistente();
+          ? _conSessionWatcher(const AdminMainScreen())
+          : _conSessionWatcher(const DashboardAsistente());
 
       if (!mounted) return;
       Navigator.pushReplacement(

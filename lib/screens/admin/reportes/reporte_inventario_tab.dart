@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/reporte_admin.dart';
 import '../../../services/reporte_pdf_service.dart';
+import '../../../utils/busqueda_reportes.dart';
 import '../../../utils/reporte_formatters.dart';
 import 'producto_detalle_screen.dart';
 import 'reporte_widgets.dart';
@@ -32,17 +33,10 @@ class _ReporteInventarioTabState extends State<ReporteInventarioTab> {
   }
 
   List<ProductoReporte> get _filtrados {
-    final consulta = _consulta.trim().toLowerCase();
-    if (consulta.isEmpty) return widget.productos;
-    return widget.productos.where((producto) {
-      final texto = [
-        producto.nombre,
-        producto.categoriaMostrada,
-        producto.activo ? 'activo' : 'inactivo',
-        producto.stockBajo ? 'stock bajo' : '',
-      ].join(' ').toLowerCase();
-      return texto.contains(consulta);
-    }).toList();
+    if (_consulta.trim().isEmpty) return widget.productos;
+    return widget.productos
+        .where((producto) => coincideProducto(producto, _consulta))
+        .toList();
   }
 
   Future<void> _exportarPdf() async {
@@ -132,13 +126,16 @@ class _ReporteInventarioTabState extends State<ReporteInventarioTab> {
           ),
           const SizedBox(height: 18),
           if (productos.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 300,
               child: ReporteEmptyState(
                 icono: Icons.inventory_2_rounded,
-                titulo: 'Sin productos registrados',
-                mensaje:
-                    'Los productos del inventario aparecerán aquí con su stock y precios.',
+                titulo: _consulta.trim().isEmpty
+                    ? 'Sin productos registrados'
+                    : 'Sin resultados',
+                mensaje: _consulta.trim().isEmpty
+                    ? 'Los productos del inventario aparecerán aquí con su stock y precios.'
+                    : 'No hay productos que coincidan con "${_consulta.trim()}".',
               ),
             )
           else

@@ -47,9 +47,11 @@ class AuthService {
   String? _username;
   UsuarioPerfil? _perfil;
   Future<UsuarioPerfil?>? _perfilFuture;
+  bool _sesionExpiradaNotificada = false;
 
-  /// Se invoca cuando una petición protegida responde 401 (token inválido o
-  /// expirado): la sesión local ya fue limpiada y hay que volver al login.
+  /// Se invoca cuando la sesión ya no es válida (token expirado, revocado o
+  /// usuario desactivado): la sesión local ya fue limpiada y hay que volver al
+  /// login.
   void Function()? onSessionExpired;
 
   String? get accessToken => _accessToken;
@@ -100,6 +102,7 @@ class AuthService {
   /// No valida el token con el backend (la API es la autoridad): si resulta
   /// estar vencido, la primera petición protegida devolverá 401 y se limpiará.
   Future<bool> restoreSession() async {
+    _sesionExpiradaNotificada = false;
     final token = await _storage.readToken();
     if (token == null || token.isEmpty) {
       _accessToken = null;
@@ -145,6 +148,7 @@ class AuthService {
       );
     }
 
+    _sesionExpiradaNotificada = false;
     _accessToken = token;
     _applyTokenClaims(token);
     _perfil = null;
@@ -177,6 +181,7 @@ class AuthService {
       }
     }
 
+    _sesionExpiradaNotificada = false;
     await _clearSession();
 
     if (failure != null) {
@@ -235,8 +240,7 @@ class AuthService {
     final response = await _send(() => run(token), statusCode: 0);
 
     if (response.statusCode == 401) {
-      await _clearSession();
-      onSessionExpired?.call();
+      await _expirarSesion();
       throw AuthException(
         'Tu sesión ha expirado. Inicia sesión de nuevo.',
         statusCode: 401,
@@ -306,6 +310,50 @@ class AuthService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Consulta el estado actual del usuario sin usar el perfil cacheado.
+  ///
+  /// Devuelve `false` si el usuario ya no existe, fue desactivado o el token
+  /// dejó de ser válido. En esos casos la sesión local queda cerrada.
+  Future<bool> verificarSesionActiva() async {
+    if (_accessToken == null) return false;
+
+    final http.Response response;
+    try {
+      response = await getProtected(
+        ApiConfig.endpoint(ApiConfig.perfilActualPath),
+      );
+    } on AuthException catch (e) {
+      if (e.statusCode == 401) return false;
+      rethrow;
+    }
+
+    if (response.statusCode != 200) return true;
+
+    try {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is! Map) return true;
+
+      final perfil = UsuarioPerfil.fromJson(Map<String, dynamic>.from(data));
+      _perfil = perfil;
+
+      if (!perfil.activo) {
+        await _expirarSesion();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      // Una respuesta inesperada no debe cerrar la sesión por sí sola.
+      return true;
+    }
+  }
+
+  Future<void> _expirarSesion() async {
+    if (_sesionExpiradaNotificada) return;
+    _sesionExpiradaNotificada = true;
+    await _clearSession();
+    onSessionExpired?.call();
   }
 
   Future<void> _clearSession() async {

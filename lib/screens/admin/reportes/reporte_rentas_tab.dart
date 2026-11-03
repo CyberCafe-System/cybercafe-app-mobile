@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/reporte_admin.dart';
 import '../../../services/reporte_pdf_service.dart';
+import '../../../utils/busqueda_reportes.dart';
 import '../../../utils/reporte_formatters.dart';
 import 'renta_detalle_screen.dart';
 import 'reporte_widgets.dart';
@@ -32,18 +33,10 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
   }
 
   List<RentaReporte> get _filtradas {
-    final consulta = _consulta.trim().toLowerCase();
-    if (consulta.isEmpty) return widget.rentas;
-    return widget.rentas.where((renta) {
-      final texto = [
-        'renta ${renta.rentaId ?? ''}',
-        renta.clienteMostrado,
-        renta.cajeroMostrado,
-        renta.estadoPago.etiqueta,
-        formatearFechaHora(renta.fecha),
-      ].join(' ').toLowerCase();
-      return texto.contains(consulta);
-    }).toList();
+    if (_consulta.trim().isEmpty) return widget.rentas;
+    return widget.rentas
+        .where((renta) => coincideRenta(renta, _consulta))
+        .toList();
   }
 
   Future<void> _exportarPdf() async {
@@ -93,7 +86,7 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
         children: [
           ReporteActionBar(
             controller: _busqueda,
-            hintText: 'Buscar por cliente, renta o estado...',
+            hintText: 'Cliente, ID o estado...',
             onChanged: (valor) => setState(() => _consulta = valor),
             onRefresh: () => widget.onRefresh(),
             onPdf: _exportarPdf,
@@ -132,13 +125,16 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
           ),
           const SizedBox(height: 18),
           if (rentas.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 300,
               child: ReporteEmptyState(
                 icono: Icons.computer_rounded,
-                titulo: 'Sin rentas registradas',
-                mensaje:
-                    'Las rentas de equipos aparecerán aquí con su cliente y estado de pago.',
+                titulo: _consulta.trim().isEmpty
+                    ? 'Sin rentas registradas'
+                    : 'Sin resultados',
+                mensaje: _consulta.trim().isEmpty
+                    ? 'Las rentas de equipos aparecerán aquí con su cliente y estado de pago.'
+                    : 'No hay rentas que coincidan con "${_consulta.trim()}".',
               ),
             )
           else
