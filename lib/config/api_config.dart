@@ -22,7 +22,6 @@ class ApiConfig {
   static const String detallesRentaPath = '/detalles-renta';
   static const String rentasPath = '/rentas';
   static const String ventasPath = '/ventas';
-  static const String detallesVentaPath = '/detalles-venta';
   static const String productosPath = '/productos';
   static const String categoriasPath = '/categorias';
   static const String clientesPath = '/clientes';
@@ -30,13 +29,6 @@ class ApiConfig {
   static const String perfilActualPath = '/usuarios/me';
   static const String reporteResumenGeneralPath = '/reportes/resumen-general';
   static const String reporteDiarioPath = '/reportes/diario';
-
-  /// Ruta del listado de productos.
-  /// Configurable: `--dart-define=PRODUCTS_PATH=/api/products`.
-  static const String productsPath = String.fromEnvironment(
-    'PRODUCTS_PATH',
-    defaultValue: '/usuarios',
-  );
 
   static const Duration requestTimeout = Duration(seconds: 15);
 

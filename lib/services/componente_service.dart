@@ -70,44 +70,6 @@ class ComponenteService {
     );
   }
 
-  Future<Componente> actualizarEstado(
-    int componenteId,
-    EstadoComponente estado,
-  ) async {
-    if (componenteId < 1) {
-      throw ArgumentError.value(
-        componenteId,
-        'componenteId',
-        'Debe ser mayor o igual a 1',
-      );
-    }
-
-    final uri = ApiConfig.endpoint(
-      '${ApiConfig.componentesPath}/$componenteId/estado',
-    ).replace(queryParameters: {'nuevo_estado': estado.value});
-    final response = await _auth.patchProtected(uri);
-
-    if (response.statusCode == 404) {
-      throw AuthException('Componente no encontrado.', statusCode: 404);
-    }
-    if (response.statusCode != 200) {
-      throw _errorFor(
-        response.statusCode,
-        response.bodyBytes,
-        'No se pudo actualizar el estado del componente.',
-      );
-    }
-
-    final data = _decode(
-      response.bodyBytes,
-      'No se pudo actualizar el estado del componente.',
-    );
-    if (data is! Map) {
-      throw AuthException('El servidor devolvió una respuesta inesperada.');
-    }
-    return Componente.fromJson(Map<String, dynamic>.from(data));
-  }
-
   Future<List<Componente>> _getComponentes(
     Uri uri,
     String fallback, {

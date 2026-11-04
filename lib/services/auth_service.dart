@@ -193,24 +193,11 @@ class AuthService {
     }
   }
 
-  /// Encabezados listos para cualquier petición protegida.
-  Map<String, String> authorizedHeaders() => {
-    if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
-  };
-
   /// Petición GET protegida: adjunta el Bearer y, si responde 401, limpia la
   /// sesión local y avisa vía [onSessionExpired].
   Future<http.Response> getProtected(Uri uri) {
     return _protectedRequest(
       (token) => _client.get(uri, headers: {'Authorization': 'Bearer $token'}),
-    );
-  }
-
-  /// Petición PATCH protegida con el mismo manejo de sesión que [getProtected].
-  Future<http.Response> patchProtected(Uri uri) {
-    return _protectedRequest(
-      (token) =>
-          _client.patch(uri, headers: {'Authorization': 'Bearer $token'}),
     );
   }
 
@@ -248,25 +235,6 @@ class AuthService {
     }
 
     return response;
-  }
-
-  /// Obtiene el listado de productos (`GET [ApiConfig.productsPath]`).
-  ///
-  /// Devuelve el JSON decodificado (la forma exacta la define el backend).
-  Future<dynamic> getProducts() async {
-    final response = await getProtected(
-      ApiConfig.endpoint(ApiConfig.productsPath),
-    );
-
-    if (response.statusCode != 200) {
-      throw _mapError(response, isLogin: false);
-    }
-
-    try {
-      return jsonDecode(response.body);
-    } catch (_) {
-      throw AuthException('El servidor devolvió una respuesta inesperada.');
-    }
   }
 
   /// Carga y cachea el perfil del usuario autenticado (`GET /usuarios/me`).

@@ -381,9 +381,6 @@ class ReporteAdminData {
       rentas.fold(0, (total, renta) => total + renta.total);
   int get productosStockBajo =>
       productos.where((producto) => producto.stockBajo).length;
-  int get rentasPendientes => rentas
-      .where((renta) => renta.estadoPago == EstadoPagoReporte.pendiente)
-      .length;
 }
 
 int? _parseInt(dynamic value) {
