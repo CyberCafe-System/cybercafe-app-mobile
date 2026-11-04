@@ -128,6 +128,52 @@ void main() {
       expect(await storage.readToken(), 'token-valido');
     });
   });
+
+  group('AuthService.restoreSession', () {
+    test('rechaza y borra un token vencido', () async {
+      final storage = InMemoryTokenStorage();
+      await storage.writeToken(
+        _jwt(expira: DateTime.now().subtract(const Duration(minutes: 1))),
+      );
+      final auth = AuthService(storage: storage);
+
+      expect(await auth.restoreSession(), isFalse);
+      expect(auth.accessToken, isNull);
+      expect(await storage.readToken(), isNull);
+    });
+
+    test('acepta un token vigente y reconstruye los claims', () async {
+      final storage = InMemoryTokenStorage();
+      await storage.writeToken(
+        _jwt(expira: DateTime.now().add(const Duration(hours: 1))),
+      );
+      final auth = AuthService(storage: storage);
+
+      expect(await auth.restoreSession(), isTrue);
+      expect(auth.rolEfectivo, 3);
+      expect(auth.username, 'edwin_asistente');
+      expect(await storage.readToken(), isNotNull);
+    });
+  });
+}
+
+String _jwt({required DateTime expira}) {
+  final header = base64Url
+      .encode(utf8.encode(jsonEncode({'alg': 'none'})))
+      .replaceAll('=', '');
+  final payload = base64Url
+      .encode(
+        utf8.encode(
+          jsonEncode({
+            'id': 7,
+            'username': 'edwin_asistente',
+            'id_rol': 3,
+            'exp': expira.toUtc().millisecondsSinceEpoch ~/ 1000,
+          }),
+        ),
+      )
+      .replaceAll('=', '');
+  return '$header.$payload.firma';
 }
 
 Map<String, dynamic> _perfilJson({required bool activo}) => {
