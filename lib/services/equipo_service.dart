@@ -51,32 +51,6 @@ class EquipoService {
     return equipos;
   }
 
-  Future<Equipo> getEquipo(int id) async {
-    if (id < 1) {
-      throw ArgumentError.value(id, 'id', 'Debe ser mayor o igual a 1');
-    }
-
-    final uri = ApiConfig.endpoint('${ApiConfig.equiposPath}/$id');
-    final response = await _auth.getProtected(uri);
-
-    if (response.statusCode == 404) {
-      throw AuthException('Equipo no encontrado.', statusCode: 404);
-    }
-    if (response.statusCode != 200) {
-      throw _errorFor(
-        response.statusCode,
-        response.bodyBytes,
-        'No se pudo cargar el equipo.',
-      );
-    }
-
-    final data = _decode(response.bodyBytes, 'No se pudo cargar el equipo.');
-    if (data is! Map) {
-      throw AuthException('El servidor devolvió una respuesta inesperada.');
-    }
-    return Equipo.fromJson(Map<String, dynamic>.from(data));
-  }
-
   dynamic _decode(List<int> bodyBytes, String fallback) {
     try {
       return jsonDecode(utf8.decode(bodyBytes));

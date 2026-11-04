@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/confirmar_cierre_sesion.dart';
 import '../auth/login_screen.dart';
 
 class PerfilScreen extends StatelessWidget {
   final VoidCallback onVolver;
   const PerfilScreen({super.key, required this.onVolver});
+
+  Future<void> _cerrarSesion(BuildContext context) async {
+    final confirmado = await confirmarCierreSesion(context);
+    if (!confirmado || !context.mounted) return;
+
+    try {
+      await AuthService.instance.logout();
+    } catch (_) {
+      // logout() ya limpió la sesión local aunque falle el servidor.
+    }
+
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,13 +149,7 @@ class PerfilScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: GestureDetector(
-              onTap: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-              },
+              onTap: () => _cerrarSesion(context),
               child: Container(
                 width: double.infinity,
                 height: 60,

@@ -47,6 +47,7 @@ class AuthService {
   String? _username;
   UsuarioPerfil? _perfil;
   Future<UsuarioPerfil?>? _perfilFuture;
+  DateTime? _tokenExpiraEn;
   bool _sesionExpiradaNotificada = false;
 
   /// Se invoca cuando la sesión ya no es válida (token expirado, revocado o
@@ -59,8 +60,12 @@ class AuthService {
   int? get usuarioId => _usuarioId;
   String? get username => _username;
   UsuarioPerfil? get perfil => _perfil;
-  bool get isAdmin => _rolId == 1;
-  bool get isAsistente => _rolId == 3;
+
+  /// Rol efectivo: prioriza el perfil fresco sobre los claims del token.
+  int? get rolEfectivo => _perfil?.rolId ?? _rolId;
+
+  bool get isAdmin => rolEfectivo == 1;
+  bool get isAsistente => rolEfectivo == 3;
   bool get isAuthenticated => _accessToken != null;
 
   /// Nombre real del usuario; si el perfil aún no cargó, usa el username.
@@ -85,7 +90,7 @@ class AuthService {
 
   /// Etiqueta legible del rol a partir del perfil o de los claims del token.
   String get etiquetaRol {
-    switch (_perfil?.rolId ?? _rolId) {
+    switch (rolEfectivo) {
       case 1:
         return 'Administrador';
       case 2:
@@ -115,6 +120,16 @@ class AuthService {
     }
     _accessToken = token;
     _applyTokenClaims(token);
+
+    final expira = _tokenExpiraEn;
+    if (expira != null &&
+        !expira.isAfter(
+          DateTime.now().toUtc().add(const Duration(seconds: 30)),
+        )) {
+      await _clearSession();
+      return false;
+    }
+
     return true;
   }
 
@@ -193,24 +208,17 @@ class AuthService {
     }
   }
 
-  /// Encabezados listos para cualquier petición protegida.
-  Map<String, String> authorizedHeaders() => {
-    if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
-  };
+  /// Limpia la sesión local sin avisar al servidor.
+  Future<void> clearSession() async {
+    _sesionExpiradaNotificada = false;
+    await _clearSession();
+  }
 
   /// Petición GET protegida: adjunta el Bearer y, si responde 401, limpia la
   /// sesión local y avisa vía [onSessionExpired].
   Future<http.Response> getProtected(Uri uri) {
     return _protectedRequest(
       (token) => _client.get(uri, headers: {'Authorization': 'Bearer $token'}),
-    );
-  }
-
-  /// Petición PATCH protegida con el mismo manejo de sesión que [getProtected].
-  Future<http.Response> patchProtected(Uri uri) {
-    return _protectedRequest(
-      (token) =>
-          _client.patch(uri, headers: {'Authorization': 'Bearer $token'}),
     );
   }
 
@@ -248,25 +256,6 @@ class AuthService {
     }
 
     return response;
-  }
-
-  /// Obtiene el listado de productos (`GET [ApiConfig.productsPath]`).
-  ///
-  /// Devuelve el JSON decodificado (la forma exacta la define el backend).
-  Future<dynamic> getProducts() async {
-    final response = await getProtected(
-      ApiConfig.endpoint(ApiConfig.productsPath),
-    );
-
-    if (response.statusCode != 200) {
-      throw _mapError(response, isLogin: false);
-    }
-
-    try {
-      return jsonDecode(response.body);
-    } catch (_) {
-      throw AuthException('El servidor devolvió una respuesta inesperada.');
-    }
   }
 
   /// Carga y cachea el perfil del usuario autenticado (`GET /usuarios/me`).
@@ -363,6 +352,7 @@ class AuthService {
     _username = null;
     _perfil = null;
     _perfilFuture = null;
+    _tokenExpiraEn = null;
     await _storage.deleteToken();
   }
 
@@ -391,6 +381,20 @@ class AuthService {
       _username = username is String && username.trim().isNotEmpty
           ? username.trim()
           : null;
+
+      final exp = data['exp'];
+      int? expSegundos;
+      if (exp is num) {
+        expSegundos = exp.toInt();
+      } else if (exp is String) {
+        expSegundos = int.tryParse(exp);
+      }
+      _tokenExpiraEn = expSegundos == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              expSegundos * 1000,
+              isUtc: true,
+            );
     } catch (_) {
       _resetClaims();
     }
@@ -401,6 +405,7 @@ class AuthService {
     _usuarioId = null;
     _username = null;
     _perfil = null;
+    _tokenExpiraEn = null;
   }
 
   Future<http.Response> _send(

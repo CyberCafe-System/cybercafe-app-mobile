@@ -42,6 +42,9 @@ class _SessionWatcherState extends State<SessionWatcher>
     _auth.onSessionExpired = _callback;
     WidgetsBinding.instance.addObserver(this);
     _iniciarTemporizador();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _verificarSesion();
+    });
   }
 
   @override

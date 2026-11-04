@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import 'screens/auth/login_screen.dart';
+import 'screens/auth/session_gate.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(const CoffeeLanApp());
 }
 
 class CoffeeLanApp extends StatelessWidget {
-  const CoffeeLanApp({super.key});
+  const CoffeeLanApp({super.key, this.auth});
+
+  /// Permite inyectar un [AuthService] con almacenamiento en memoria en tests.
+  final AuthService? auth;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +26,7 @@ class CoffeeLanApp extends StatelessWidget {
           secondary: const Color(0xFFB06B05),
         ),
       ),
-      home: const LoginScreen(),
+      home: SessionGate(auth: auth),
     );
   }
 }

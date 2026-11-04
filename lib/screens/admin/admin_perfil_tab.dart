@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/confirmar_cierre_sesion.dart';
 import '../auth/login_screen.dart';
 
 class AdminPerfilTab extends StatelessWidget {
@@ -122,26 +123,6 @@ class AdminPerfilTab extends StatelessWidget {
                 'Correo',
                 AuthService.instance.correoMostrado,
               ),
-              const SizedBox(height: 20),
-              // Botón de Contraseña que muestra el mensaje de restricción web
-              GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Por políticas de seguridad, el cambio de contraseña solo puede realizarse desde la plataforma web.',
-                      ),
-                      backgroundColor: Color(0xFF2C1E16),
-                      duration: Duration(seconds: 4),
-                    ),
-                  );
-                },
-                child: _buildOpcionAdmin(
-                  Icons.lock_reset,
-                  'Cambiar Contraseña',
-                ),
-              ),
-              // Eliminado el botón de Gestión de personal
             ],
           ),
         ),
@@ -150,11 +131,7 @@ class AdminPerfilTab extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(20.0),
           child: GestureDetector(
-            onTap: () => Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (route) => false,
-            ),
+            onTap: () => _cerrarSesion(context),
             child: Container(
               width: double.infinity,
               height: 60,
@@ -191,6 +168,24 @@ class AdminPerfilTab extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _cerrarSesion(BuildContext context) async {
+    final confirmado = await confirmarCierreSesion(context);
+    if (!confirmado || !context.mounted) return;
+
+    try {
+      await AuthService.instance.logout();
+    } catch (_) {
+      // logout() ya limpió la sesión local aunque falle el servidor.
+    }
+
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
     );
   }
 
@@ -237,43 +232,6 @@ class AdminPerfilTab extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOpcionAdmin(IconData icon, String titulo) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F6F9),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: const Color(0xFF2C1E16)),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Text(
-              titulo,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         ],
       ),
     );
