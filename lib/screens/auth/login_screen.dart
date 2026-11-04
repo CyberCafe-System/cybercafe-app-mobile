@@ -2,9 +2,25 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../../services/auth_service.dart';
 import '../../widgets/session_watcher.dart';
-import '../admin/admin_main_screen.dart';
-import '../asistente/dashboard_screen.dart';
+import 'role_home.dart';
 import 'success_auth_screen.dart';
+
+/// Envuelve [child] para expulsar la sesión si el backend la invalida.
+Widget conSessionWatcher(Widget child) {
+  return SessionWatcher(
+    onSessionExpired: (context) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(
+            mensajeSesion: 'Tu sesión finalizó. Inicia sesión nuevamente.',
+          ),
+        ),
+        (route) => false,
+      );
+    },
+    child: child,
+  );
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.mensajeSesion});
@@ -33,22 +49,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Widget _conSessionWatcher(Widget child) {
-    return SessionWatcher(
-      onSessionExpired: (context) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const LoginScreen(
-              mensajeSesion: 'Tu sesión finalizó. Inicia sesión nuevamente.',
-            ),
-          ),
-          (route) => false,
-        );
-      },
-      child: child,
-    );
-  }
-
   Future<void> _loginProcess() async {
     FocusScope.of(context).unfocus();
 
@@ -65,17 +65,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await AuthService.instance.login(username: username, password: password);
 
-      final rolId = AuthService.instance.rolId;
-      if (rolId != 1 && rolId != 3) {
-        try {
-          await AuthService.instance.logout();
-        } catch (_) {}
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        _showError('Tu rol no tiene acceso a la aplicación móvil.');
-        return;
-      }
-
       try {
         await AuthService.instance.cargarPerfil();
       } on AuthException catch (e) {
@@ -89,9 +78,26 @@ class _LoginScreenState extends State<LoginScreen> {
         // El perfil es opcional: si falla, se usa el username del token.
       }
 
-      final destination = rolId == 1
-          ? _conSessionWatcher(const AdminMainScreen())
-          : _conSessionWatcher(const DashboardAsistente());
+      final rolId = AuthService.instance.rolEfectivo;
+      if (rolId != 1 && rolId != 3) {
+        try {
+          await AuthService.instance.logout();
+        } catch (_) {}
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        _showError('Tu rol no tiene acceso a la aplicación móvil.');
+        return;
+      }
+
+      final home = homePorRol(rolId);
+      if (home == null) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        _showError('Tu rol no tiene acceso a la aplicación móvil.');
+        return;
+      }
+
+      final destination = conSessionWatcher(home);
 
       if (!mounted) return;
       Navigator.pushReplacement(
