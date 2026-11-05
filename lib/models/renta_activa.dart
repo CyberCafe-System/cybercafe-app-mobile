@@ -74,6 +74,7 @@ class RentaActivaEquipo {
       minutosTranscurridos: minutosTranscurridos,
       minutosRestantes: minutosRestantes,
       subtotal: _parseDouble(json['subtotal']),
+      clienteNombre: _parseString(json['cliente_nombre']),
       consultadaEn: consultadaEn ?? DateTime.now(),
     );
   }
@@ -91,6 +92,11 @@ double _parseDouble(dynamic value) {
   if (value is num) return value.toDouble();
   if (value is String) return double.tryParse(value) ?? 0;
   return 0;
+}
+
+String? _parseString(dynamic value) {
+  if (value is String && value.trim().isNotEmpty) return value.trim();
+  return null;
 }
 
 DateTime? _parseDate(dynamic value) {

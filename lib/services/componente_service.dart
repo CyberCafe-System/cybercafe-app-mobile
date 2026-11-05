@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../config/api_config.dart';
 import '../models/componente.dart';
 import 'auth_service.dart';
+import 'paginacion_api.dart';
 
 class ComponenteService {
   ComponenteService({AuthService? auth}) : _auth = auth ?? AuthService.instance;
@@ -23,35 +24,27 @@ class ComponenteService {
       );
     }
 
-    final componentes = <Componente>[];
-    var offset = 0;
-    const pageSize = 100;
-
-    while (componentes.length < maxItems) {
-      final uri = ApiConfig.endpoint(ApiConfig.componentesPath).replace(
-        queryParameters: {
-          'offset': '$offset',
-          'limit': '$pageSize',
-          if (activo != null) 'activo': '$activo',
-        },
-      );
-      final pagina = await _getComponentes(
-        uri,
+    final resultado = await PaginadorApi.recolectar<Componente>(
+      maxItems: maxItems,
+      cargarPagina: (offset, limit) => _getComponentes(
+        ApiConfig.endpoint(ApiConfig.componentesPath).replace(
+          queryParameters: {
+            'offset': '$offset',
+            'limit': '$limit',
+            if (activo != null) 'activo': '$activo',
+          },
+        ),
         'No se pudieron cargar los componentes.',
         mensajePermisos: 'No tienes permisos para consultar componentes.',
-      );
-      componentes.addAll(pagina);
-      if (pagina.length < pageSize) break;
-      offset += pageSize;
-    }
-
-    if (componentes.length > maxItems) {
-      return componentes.sublist(0, maxItems);
-    }
-    return componentes;
+      ),
+    );
+    return resultado.items;
   }
 
-  Future<List<Componente>> getComponentesPorEquipo(int equipoId) async {
+  Future<List<Componente>> getComponentesPorEquipo(
+    int equipoId, {
+    int maxItems = 1000,
+  }) async {
     if (equipoId < 1) {
       throw ArgumentError.value(
         equipoId,
@@ -59,18 +52,31 @@ class ComponenteService {
         'Debe ser mayor o igual a 1',
       );
     }
+    if (maxItems < 1) {
+      throw ArgumentError.value(
+        maxItems,
+        'maxItems',
+        'Debe ser mayor o igual a 1',
+      );
+    }
 
-    final uri = ApiConfig.endpoint(
+    final base = ApiConfig.endpoint(
       '${ApiConfig.equiposPath}/$equipoId/componentes',
     );
-    return _getComponentes(
-      uri,
-      'No se pudieron cargar los componentes.',
-      mensajeNoEncontrado: 'Equipo no encontrado.',
+    final resultado = await PaginadorApi.recolectar<Componente>(
+      maxItems: maxItems,
+      cargarPagina: (offset, limit) => _getComponentes(
+        base.replace(
+          queryParameters: {'offset': '$offset', 'limit': '$limit'},
+        ),
+        'No se pudieron cargar los componentes.',
+        mensajeNoEncontrado: 'Equipo no encontrado.',
+      ),
     );
+    return resultado.items;
   }
 
-  Future<List<Componente>> _getComponentes(
+  Future<PaginaApi<Componente>> _getComponentes(
     Uri uri,
     String fallback, {
     String? mensajeNoEncontrado,
@@ -102,7 +108,10 @@ class ComponenteService {
       }
       componentes.add(Componente.fromJson(Map<String, dynamic>.from(item)));
     }
-    return componentes;
+    return PaginaApi(
+      items: componentes,
+      total: PaginadorApi.totalDesde(response),
+    );
   }
 
   dynamic _decode(List<int> bodyBytes, String fallback) {

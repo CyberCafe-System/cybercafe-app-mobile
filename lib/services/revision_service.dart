@@ -6,6 +6,7 @@ import '../models/pendiente_revision.dart';
 import '../models/revision_equipo.dart';
 import '../models/revision_historial.dart';
 import 'auth_service.dart';
+import 'paginacion_api.dart';
 
 class RevisionService {
   RevisionService({AuthService? auth}) : _auth = auth ?? AuthService.instance;
@@ -78,84 +79,38 @@ class RevisionService {
       );
     }
 
+    // El backend ya resuelve equipo y cliente. Antes se listaban las
+    // colecciones completas de rentas, clientes y revisiones solo para unir
+    // los nombres, lo que multiplicaba las peticiones del dashboard.
     final detalles = await _getAllList(
-      ApiConfig.detallesRentaPath,
+      ApiConfig.detallesRentaPendientesRevisionPath,
       'No se pudieron consultar las rentas pendientes de revisión.',
       maxItems: maxItems,
-      queryParameters: {'estado': 'Pendiente Revision'},
     );
     if (detalles.isEmpty) return const {};
-
-    final rentasFuture = _getAllListOrEmpty(
-      ApiConfig.rentasPath,
-      'No se pudieron cargar las rentas.',
-      maxItems: maxItems,
-    );
-    final clientesFuture = _getAllListOrEmpty(
-      ApiConfig.clientesPath,
-      'No se pudieron cargar los clientes.',
-      maxItems: maxItems,
-    );
-    final revisionesFuture = _getAllListOrEmpty(
-      ApiConfig.revisionesPath,
-      'No se pudieron cargar las revisiones.',
-      maxItems: maxItems,
-    );
-
-    final rentas = await rentasFuture;
-    final clientes = await clientesFuture;
-    final revisiones = await revisionesFuture;
-
-    final clientePorRenta = <int, int>{};
-    for (final renta in rentas) {
-      final rentaId = _parseInt(renta['renta_id']);
-      final clienteId = _parseInt(renta['cliente_id']);
-      if (rentaId != null && clienteId != null) {
-        clientePorRenta[rentaId] = clienteId;
-      }
-    }
-
-    final nombrePorCliente = <int, String>{};
-    for (final cliente in clientes) {
-      final clienteId = _parseInt(cliente['cliente_id']);
-      final nombre = _componerNombreCliente(cliente);
-      if (clienteId != null && nombre != null) {
-        nombrePorCliente[clienteId] = nombre;
-      }
-    }
-
-    final detallesYaRevisados = <int>{};
-    for (final revision in revisiones) {
-      final detalleId = _parseInt(revision['detalle_renta_id']);
-      if (detalleId != null) {
-        detallesYaRevisados.add(detalleId);
-      }
-    }
 
     final pendientes = <int, PendienteRevision>{};
     final detallePorEquipo = <int, int>{};
     for (final detalle in detalles) {
       final equipoId = _parseInt(detalle['equipo_id']);
-      if (equipoId == null) continue;
-
       final detalleId = _parseInt(detalle['detalle_renta_id']);
-      if (detalleId == null || detallesYaRevisados.contains(detalleId)) {
-        continue;
-      }
+      if (equipoId == null || detalleId == null) continue;
 
       final detalleAnterior = detallePorEquipo[equipoId];
       if (detalleAnterior != null && detalleId <= detalleAnterior) {
         continue;
       }
 
-      final rentaId = _parseInt(detalle['renta_id']);
-      final clienteId = rentaId == null ? null : clientePorRenta[rentaId];
+      final clienteNombre = detalle['cliente_nombre'];
       detallePorEquipo[equipoId] = detalleId;
       pendientes[equipoId] = PendienteRevision(
         detalleRentaId: detalleId,
         equipoId: equipoId,
-        rentaId: rentaId,
-        clienteNombre: clienteId == null ? null : nombrePorCliente[clienteId],
+        rentaId: _parseInt(detalle['renta_id']),
+        clienteNombre:
+            clienteNombre is String && clienteNombre.trim().isNotEmpty
+            ? clienteNombre.trim()
+            : null,
       );
     }
     return pendientes;
@@ -286,7 +241,10 @@ class RevisionService {
     return historial;
   }
 
-  Future<List<Map<String, dynamic>>> _getList(Uri uri, String fallback) async {
+  Future<PaginaApi<Map<String, dynamic>>> _getList(
+    Uri uri,
+    String fallback,
+  ) async {
     final response = await _auth.getProtected(uri);
     if (response.statusCode != 200) {
       throw _errorFor(response.statusCode, response.bodyBytes, fallback);
@@ -304,7 +262,7 @@ class RevisionService {
       }
       items.add(Map<String, dynamic>.from(item));
     }
-    return items;
+    return PaginaApi(items: items, total: PaginadorApi.totalDesde(response));
   }
 
   Future<List<Map<String, dynamic>>> _getAllList(
@@ -314,29 +272,21 @@ class RevisionService {
     int maxItems = 1000,
     Map<String, String>? queryParameters,
   }) async {
-    final items = <Map<String, dynamic>>[];
-    var offset = 0;
-
-    while (items.length < maxItems) {
-      final page = await _getList(
+    final resultado = await PaginadorApi.recolectar<Map<String, dynamic>>(
+      pageSize: pageSize,
+      maxItems: maxItems,
+      cargarPagina: (offset, limit) => _getList(
         ApiConfig.endpoint(path).replace(
           queryParameters: {
             'offset': '$offset',
-            'limit': '$pageSize',
+            'limit': '$limit',
             ...?queryParameters,
           },
         ),
         fallback,
-      );
-      items.addAll(page);
-      if (page.length < pageSize) break;
-      offset += pageSize;
-    }
-
-    if (items.length > maxItems) {
-      return items.sublist(0, maxItems);
-    }
-    return items;
+      ),
+    );
+    return resultado.items;
   }
 
   Future<List<Map<String, dynamic>>> _getAllListOrEmpty(

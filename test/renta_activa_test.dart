@@ -120,57 +120,39 @@ Future<http.Response> _responder(http.Request request) async {
   }
 
   if (request.method == 'GET' && path == '/rentas/activas') {
-    return _json([
-      {
-        'detalle_renta_id': 3,
-        'renta_id': 20,
-        'equipo_id': 8,
-        'hora_inicio': '2026-10-30T10:00:00Z',
-        'tiempo_de_renta': 60,
-        'tiempo_agregado': 0,
-        'tiempo_total': 60,
-        'minutos_transcurridos': 15,
-        'minutos_restantes': 45,
-        'subtotal': '2.50',
-        'estado': 'Activa',
-      },
-    ]);
-  }
-
-  if (request.method == 'GET' && path == '/rentas') {
-    return _json([
-      {
-        'renta_id': 20,
-        'cliente_id': 7,
-        'usuario_id': 2,
-        'fecha': '2026-10-30T10:00:00Z',
-        'total': '2.50',
-        'estado_de_pago': 'Pendiente',
-      },
-    ]);
-  }
-
-  if (request.method == 'GET' && path == '/clientes') {
-    return _json([
-      {
-        'cliente_id': 7,
-        'nombre': 'Ana',
-        'apellido': 'Pérez',
-        'dui': '01234567-8',
-        'direccion': 'San Salvador',
-        'telefono': 77777777,
-      },
-    ]);
+    return _json(
+      [
+        {
+          'detalle_renta_id': 3,
+          'renta_id': 20,
+          'equipo_id': 8,
+          'equipo_nombre': 'PC-08',
+          'cliente_nombre': 'Ana Pérez',
+          'hora_inicio': '2026-10-30T10:00:00Z',
+          'tiempo_de_renta': 60,
+          'tiempo_agregado': 0,
+          'tiempo_total': 60,
+          'minutos_transcurridos': 15,
+          'minutos_restantes': 45,
+          'subtotal': '2.50',
+          'estado': 'Activa',
+        },
+      ],
+      total: 1,
+    );
   }
 
   return http.Response('{"detail":"No encontrado"}', 404);
 }
 
-http.Response _json(Object data) {
+http.Response _json(Object data, {int? total}) {
   return http.Response(
     jsonEncode(data),
     200,
-    headers: {'content-type': 'application/json'},
+    headers: {
+      'content-type': 'application/json',
+      if (total != null) 'x-total-count': '$total',
+    },
   );
 }
 

@@ -31,6 +31,8 @@ class ApiConfig {
   static const String componentesPath = '/componentes';
   static const String revisionesPath = '/revisiones';
   static const String detallesRentaPath = '/detalles-renta';
+  static const String detallesRentaPendientesRevisionPath =
+      '/detalles-renta/pendientes-revision';
   static const String rentasPath = '/rentas';
   static const String ventasPath = '/ventas';
   static const String productosPath = '/productos';

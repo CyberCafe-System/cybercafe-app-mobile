@@ -5,6 +5,7 @@ import '../models/dashboard_admin.dart';
 import '../models/equipo.dart';
 import '../models/reporte_admin.dart';
 import 'auth_service.dart';
+import 'paginacion_api.dart';
 
 class ReporteAdminService {
   ReporteAdminService({AuthService? auth})
@@ -384,19 +385,17 @@ class ReporteAdminService {
     int pageSize = 100,
     int maxPages = 200,
   }) async {
-    final items = <Map<String, dynamic>>[];
-    var offset = 0;
-
-    for (var page = 0; page < maxPages; page++) {
-      final uri = ApiConfig.endpoint(
-        path,
-      ).replace(queryParameters: {'offset': '$offset', 'limit': '$pageSize'});
-      final pageItems = await _getList(uri, fallback);
-      items.addAll(pageItems);
-      if (pageItems.length < pageSize) break;
-      offset += pageSize;
-    }
-    return items;
+    final resultado = await PaginadorApi.recolectar<Map<String, dynamic>>(
+      pageSize: pageSize,
+      maxItems: pageSize * maxPages,
+      cargarPagina: (offset, limit) => _getList(
+        ApiConfig.endpoint(
+          path,
+        ).replace(queryParameters: {'offset': '$offset', 'limit': '$limit'}),
+        fallback,
+      ),
+    );
+    return resultado.items;
   }
 
   Future<List<Map<String, dynamic>>> _getAllListOrEmpty(
@@ -413,7 +412,10 @@ class ReporteAdminService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _getList(Uri uri, String fallback) async {
+  Future<PaginaApi<Map<String, dynamic>>> _getList(
+    Uri uri,
+    String fallback,
+  ) async {
     final response = await _auth.getProtected(uri);
     if (response.statusCode != 200) {
       throw _errorFor(response.statusCode, response.bodyBytes, fallback);
@@ -431,7 +433,7 @@ class ReporteAdminService {
       }
       items.add(Map<String, dynamic>.from(item));
     }
-    return items;
+    return PaginaApi(items: items, total: PaginadorApi.totalDesde(response));
   }
 
   Future<Map<String, dynamic>> _getMap(String path, String fallback) {

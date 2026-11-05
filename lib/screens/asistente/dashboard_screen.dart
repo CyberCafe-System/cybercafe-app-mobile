@@ -49,7 +49,7 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
 
   Future<_DashboardData> _cargarDashboard() async {
     final resultados = await Future.wait<Object>([
-      EquipoService.instance.getEquipos(offset: 0, limit: 200),
+      EquipoService.instance.getTodosLosEquipos(),
       _cargarPendientesRevision(),
       _cargarRentasActivas(),
     ]);

@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../config/api_config.dart';
 import '../models/equipo.dart';
 import 'auth_service.dart';
+import 'paginacion_api.dart';
 
 class EquipoService {
   EquipoService({AuthService? auth}) : _auth = auth ?? AuthService.instance;
@@ -19,6 +20,31 @@ class EquipoService {
       throw ArgumentError.value(limit, 'limit', 'Debe ser mayor o igual a 1');
     }
 
+    final pagina = await _getPagina(offset, limit);
+    return pagina.items;
+  }
+
+  /// Recorre todas las páginas de equipos.
+  ///
+  /// El dashboard lo usa para no truncar silenciosamente la lista cuando hay
+  /// más equipos que el tamaño de una página.
+  Future<List<Equipo>> getTodosLosEquipos({int maxItems = 5000}) async {
+    if (maxItems < 1) {
+      throw ArgumentError.value(
+        maxItems,
+        'maxItems',
+        'Debe ser mayor o igual a 1',
+      );
+    }
+
+    final resultado = await PaginadorApi.recolectar<Equipo>(
+      maxItems: maxItems,
+      cargarPagina: _getPagina,
+    );
+    return resultado.items;
+  }
+
+  Future<PaginaApi<Equipo>> _getPagina(int offset, int limit) async {
     final uri = ApiConfig.endpoint(
       ApiConfig.equiposPath,
     ).replace(queryParameters: {'offset': '$offset', 'limit': '$limit'});
@@ -48,7 +74,7 @@ class EquipoService {
       }
       equipos.add(Equipo.fromJson(Map<String, dynamic>.from(item)));
     }
-    return equipos;
+    return PaginaApi(items: equipos, total: PaginadorApi.totalDesde(response));
   }
 
   dynamic _decode(List<int> bodyBytes, String fallback) {
