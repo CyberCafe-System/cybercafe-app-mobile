@@ -4,6 +4,7 @@ import '../../models/equipo.dart';
 import '../../models/revision_historial.dart';
 import '../../services/auth_service.dart';
 import '../../services/revision_service.dart';
+import '../../utils/historial_equipo_filtros.dart';
 
 class HistorialEquiposTab extends StatefulWidget {
   const HistorialEquiposTab({super.key});
@@ -15,6 +16,9 @@ class HistorialEquiposTab extends StatefulWidget {
 class HistorialEquiposTabState extends State<HistorialEquiposTab>
     with AutomaticKeepAliveClientMixin {
   late Future<List<RevisionHistorialItem>> _historialFuture;
+  final TextEditingController _busqueda = TextEditingController();
+  String _consulta = '';
+  FiltroHistorialEquipo _filtro = FiltroHistorialEquipo.todos;
 
   @override
   bool get wantKeepAlive => true;
@@ -23,6 +27,12 @@ class HistorialEquiposTabState extends State<HistorialEquiposTab>
   void initState() {
     super.initState();
     _historialFuture = _cargarHistorial();
+  }
+
+  @override
+  void dispose() {
+    _busqueda.dispose();
+    super.dispose();
   }
 
   Future<List<RevisionHistorialItem>> _cargarHistorial() {
@@ -45,41 +55,153 @@ class HistorialEquiposTabState extends State<HistorialEquiposTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return FutureBuilder<List<RevisionHistorialItem>>(
-      future: _historialFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFFB06B05)),
-          );
-        }
+    return Column(
+      children: [
+        _buildFiltros(),
+        Expanded(
+          child: FutureBuilder<List<RevisionHistorialItem>>(
+            future: _historialFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFB06B05)),
+                );
+              }
 
-        if (snapshot.hasError) {
-          return _buildError(snapshot.error);
-        }
+              if (snapshot.hasError) {
+                return _buildError(snapshot.error);
+              }
 
-        final historial = snapshot.data ?? const <RevisionHistorialItem>[];
-        if (historial.isEmpty) {
-          return _buildVacio();
-        }
+              final historial =
+                  snapshot.data ?? const <RevisionHistorialItem>[];
+              if (historial.isEmpty) {
+                return _buildVacio();
+              }
 
-        return RefreshIndicator(
-          color: const Color(0xFFB06B05),
-          onRefresh: _refrescar,
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            itemCount: historial.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 15),
-            itemBuilder: (context, index) {
-              return _buildTarjeta(historial[index]);
+              final filtrados = filtrarHistorialEquipos(
+                historial,
+                busqueda: _consulta,
+                filtro: _filtro,
+              );
+              if (filtrados.isEmpty) {
+                return _buildSinResultados();
+              }
+
+              return RefreshIndicator(
+                color: const Color(0xFFB06B05),
+                onRefresh: _refrescar,
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  itemCount: filtrados.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 15),
+                  itemBuilder: (context, index) {
+                    return _buildTarjeta(filtrados[index]);
+                  },
+                ),
+              );
             },
           ),
-        );
-      },
+        ),
+      ],
     );
+  }
+
+  Widget _buildFiltros() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 45,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 5,
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _busqueda,
+              onChanged: (value) => setState(() => _consulta = value),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Buscar equipo...',
+                prefixIcon: const Icon(Icons.search, color: Colors.black),
+                suffixIcon: _consulta.trim().isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Limpiar búsqueda',
+                        onPressed: () {
+                          _busqueda.clear();
+                          setState(() => _consulta = '');
+                        },
+                        icon: const Icon(Icons.close, size: 18),
+                      ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.only(top: 10),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final filtro in FiltroHistorialEquipo.values)
+                _buildChipFiltro(filtro),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChipFiltro(FiltroHistorialEquipo filtro) {
+    final seleccionado = _filtro == filtro;
+    return ChoiceChip(
+      selected: seleccionado,
+      showCheckmark: false,
+      onSelected: (_) => setState(() => _filtro = filtro),
+      avatar: Icon(
+        _iconoFiltro(filtro),
+        size: 18,
+        color: seleccionado ? const Color(0xFFB06B05) : Colors.black54,
+      ),
+      label: Text(filtro.etiqueta),
+      labelStyle: TextStyle(
+        color: seleccionado ? const Color(0xFFB06B05) : Colors.black87,
+        fontWeight: FontWeight.w600,
+      ),
+      selectedColor: const Color(0xFFFFF1DF),
+      backgroundColor: Colors.white,
+      side: BorderSide(
+        color: seleccionado ? const Color(0xFFB06B05) : Colors.black12,
+      ),
+    );
+  }
+
+  IconData _iconoFiltro(FiltroHistorialEquipo filtro) {
+    return switch (filtro) {
+      FiltroHistorialEquipo.todos => Icons.list_alt_rounded,
+      FiltroHistorialEquipo.disponibles => Icons.check_circle_outline,
+      FiltroHistorialEquipo.conDanios => Icons.warning_amber_rounded,
+    };
+  }
+
+  void _limpiarFiltros() {
+    _busqueda.clear();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _consulta = '';
+      _filtro = FiltroHistorialEquipo.todos;
+    });
   }
 
   Widget _buildError(Object? error) {
@@ -133,6 +255,40 @@ class HistorialEquiposTabState extends State<HistorialEquiposTab>
             'Las inspecciones que se finalicen aparecerán aquí.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSinResultados() {
+    return RefreshIndicator(
+      color: const Color(0xFFB06B05),
+      onRefresh: _refrescar,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        children: [
+          const SizedBox(height: 80),
+          const Icon(Icons.search_off, size: 56, color: Colors.black26),
+          const SizedBox(height: 12),
+          const Text(
+            'No hay equipos que coincidan con la búsqueda o los filtros.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2C1E16),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton.icon(
+              onPressed: _limpiarFiltros,
+              icon: const Icon(Icons.filter_alt_off, size: 18),
+              label: const Text('Limpiar filtros'),
+            ),
           ),
         ],
       ),
