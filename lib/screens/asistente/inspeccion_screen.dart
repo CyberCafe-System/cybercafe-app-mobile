@@ -490,7 +490,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: color.withOpacity(0.1),
+                              color: color.withValues(alpha: 0.1),
                               blurRadius: 15,
                               offset: const Offset(0, 5),
                             ),
@@ -576,7 +576,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: Colors.redAccent.withOpacity(
+                                        color: Colors.redAccent.withValues(alpha: 
                                           0.5,
                                         ),
                                       ),
@@ -620,10 +620,10 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                 horizontal: 12,
                               ),
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.08),
+                                color: color.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: color.withOpacity(0.3),
+                                  color: color.withValues(alpha: 0.3),
                                 ),
                               ),
                               child: DropdownButtonHideUnderline(
@@ -698,7 +698,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: estadoColor.withOpacity(0.35)),
+                border: Border.all(color: estadoColor.withValues(alpha: 0.35)),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<EstadoEquipo>(
@@ -781,7 +781,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF2C1E16).withOpacity(0.3),
+                      color: const Color(0xFF2C1E16).withValues(alpha: 0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),

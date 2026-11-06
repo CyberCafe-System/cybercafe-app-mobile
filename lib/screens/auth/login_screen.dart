@@ -160,12 +160,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(30),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(
+                    color: Colors.white.withValues(alpha: 
                       0.2,
                     ), // Blanco semi-transparente
                     borderRadius: BorderRadius.circular(30),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.white.withValues(alpha: 0.4),
                       width: 1.5,
                     ),
                   ),
@@ -201,14 +201,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: InputDecoration(
                           hintText: 'Nombre de Usuario',
                           hintStyle: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                           prefixIcon: const Icon(
                             Icons.person,
                             color: Colors.white,
                           ),
                           filled: true,
-                          fillColor: Colors.black.withOpacity(0.3),
+                          fillColor: Colors.black.withValues(alpha: 0.3),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide.none,
@@ -224,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: InputDecoration(
                           hintText: 'Contraseña',
                           hintStyle: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                           prefixIcon: const Icon(
                             Icons.lock,
@@ -242,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           filled: true,
-                          fillColor: Colors.black.withOpacity(0.3),
+                          fillColor: Colors.black.withValues(alpha: 0.3),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide.none,

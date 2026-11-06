@@ -25,6 +25,9 @@ class TarjetaEquipo extends StatelessWidget {
     if (pendienteRevision) {
       return const Color(0xFF1E88E5);
     }
+    if (rentaActiva != null && rentaActiva!.esTiempoTerminado) {
+      return const Color(0xFFD32F2F);
+    }
     if (enUso) {
       return const Color(0xFFB06B05);
     }
@@ -79,9 +82,12 @@ class TarjetaEquipo extends StatelessWidget {
   Widget build(BuildContext context) {
     final renta = pendienteRevision ? null : rentaActiva;
     final enUso = renta != null;
+    final esTerminada = renta != null && renta.esTiempoTerminado;
     final color = _color(enUso);
     final estadoEtiqueta = pendienteRevision
         ? 'Pendiente de revisión'
+        : esTerminada
+        ? 'Tiempo terminado'
         : enUso
         ? 'En uso'
         : equipo.estado.value;

@@ -227,6 +227,7 @@ enum EstadoPagoReporte {
 
 enum EstadoRentaReporte {
   activa('Activa'),
+  tiempoTerminado('Tiempo Terminado'),
   finalizada('Finalizada'),
   pendienteRevision('Pendiente Revisión'),
   desconocida('Desconocida');
@@ -236,8 +237,9 @@ enum EstadoRentaReporte {
   final String etiqueta;
 
   static EstadoRentaReporte fromValue(dynamic value) {
-    final texto = _parseString(value).toLowerCase();
+    final texto = _parseString(value).toLowerCase().replaceAll('_', ' ');
     if (texto == 'activa') return EstadoRentaReporte.activa;
+    if (texto == 'tiempo terminado') return EstadoRentaReporte.tiempoTerminado;
     if (texto == 'finalizada') return EstadoRentaReporte.finalizada;
     if (texto == 'pendiente revision') {
       return EstadoRentaReporte.pendienteRevision;

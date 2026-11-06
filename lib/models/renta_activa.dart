@@ -10,6 +10,7 @@ class RentaActivaEquipo {
     this.horaInicio,
     this.clienteNombre,
     this.subtotal = 0,
+    this.estado = 'ACTIVA',
   });
 
   final int detalleRentaId;
@@ -22,8 +23,16 @@ class RentaActivaEquipo {
   final double subtotal;
   final DateTime consultadaEn;
   final String? clienteNombre;
+  final String estado;
+
+  bool get esTiempoTerminado =>
+      estado.toUpperCase() == 'TIEMPO_TERMINADO' ||
+      minutosRestantes <= 0;
 
   Duration restanteEn(DateTime ahora) {
+    if (estado.toUpperCase() == 'TIEMPO_TERMINADO') {
+      return Duration.zero;
+    }
     final transcurrido = ahora.difference(consultadaEn);
     final restante = Duration(minutes: minutosRestantes) - transcurrido;
     return restante.isNegative ? Duration.zero : restante;
@@ -33,6 +42,7 @@ class RentaActivaEquipo {
       consultadaEn.add(Duration(minutes: minutosRestantes));
 
   double progresoEn(DateTime ahora) {
+    if (estado.toUpperCase() == 'TIEMPO_TERMINADO') return 1.0;
     final totalSegundos = tiempoTotal * 60;
     if (totalSegundos <= 0) return 1;
     final restanteSegundos = restanteEn(ahora).inSeconds;
@@ -52,6 +62,7 @@ class RentaActivaEquipo {
       horaInicio: horaInicio,
       clienteNombre: nombre,
       subtotal: subtotal,
+      estado: estado,
     );
   }
 
@@ -64,6 +75,7 @@ class RentaActivaEquipo {
     final minutosRestantes =
         _parseInt(json['minutos_restantes']) ??
         (tiempoTotal - minutosTranscurridos).clamp(0, tiempoTotal).toInt();
+    final estado = _parseString(json['estado']) ?? 'ACTIVA';
 
     return RentaActivaEquipo(
       detalleRentaId: _parseInt(json['detalle_renta_id']) ?? 0,
@@ -75,6 +87,7 @@ class RentaActivaEquipo {
       minutosRestantes: minutosRestantes,
       subtotal: _parseDouble(json['subtotal']),
       clienteNombre: _parseString(json['cliente_nombre']),
+      estado: estado,
       consultadaEn: consultadaEn ?? DateTime.now(),
     );
   }

@@ -10,8 +10,9 @@ class ApiConfig {
   /// Valor opcional pasado con `--dart-define=API_BASE_URL=...`.
   static const String _overrideBaseUrl = String.fromEnvironment('API_BASE_URL');
 
-  /// En el emulador Android `10.0.2.2` apunta al `localhost` de la máquina.
+  /// Con 'adb reverse tcp:8080 tcp:8080' por cable USB, localhost apunta a la PC.
   static const String _defaultBaseUrlAndroid = 'http://10.0.2.2:8080/';
+  //static const String _defaultBaseUrlAndroid = 'http://192.168.0.0:8080/';
 
   /// iOS Simulator, escritorio y pruebas usan el localhost del equipo.
   static const String _defaultBaseUrlLocal = 'http://127.0.0.1:8080/';
@@ -42,6 +43,8 @@ class ApiConfig {
   static const String perfilActualPath = '/usuarios/me';
   static const String reporteResumenGeneralPath = '/reportes/resumen-general';
   static const String reporteDiarioPath = '/reportes/diario';
+  static const String notificacionesPendientesPath = '/notificaciones/pendientes';
+  static const String notificacionesPath = '/notificaciones';
 
   static const Duration requestTimeout = Duration(seconds: 15);
 

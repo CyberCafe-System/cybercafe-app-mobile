@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'screens/auth/session_gate.dart';
 import 'services/auth_service.dart';
+import 'services/local_notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await LocalNotificationService.instance.inicializar();
   runApp(const CoffeeLanApp());
 }
 
