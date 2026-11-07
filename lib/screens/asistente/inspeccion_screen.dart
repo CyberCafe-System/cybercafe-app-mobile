@@ -190,20 +190,32 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
     }
 
     final afectados = <ComponenteRevisionItem>[];
-    if (!inspeccionPasada) {
-      for (final componente in componentes) {
-        final componenteId = componente.componenteId;
-        if (componenteId == null) continue;
+    for (final componente in componentes) {
+      final componenteId = componente.componenteId;
+      if (componenteId == null) continue;
 
-        final estado = _estadosLocales[componenteId] ?? componente.estado;
-        if (estado == EstadoComponente.disponible) continue;
-
+      final estado = _estadosLocales[componenteId] ?? componente.estado;
+      if (!inspeccionPasada) {
+        if (estado == EstadoComponente.disponible &&
+            componente.estado == EstadoComponente.disponible) {
+          continue;
+        }
         afectados.add(
           ComponenteRevisionItem(
             componenteId: componenteId,
             nombre: componente.nombre,
             estado: estado.value,
             descripcionDanio: _descripcionesDanio[componenteId],
+          ),
+        );
+      } else if (componente.estado != EstadoComponente.disponible &&
+          estado == EstadoComponente.disponible) {
+        // Componente rehabilitado a Disponible durante una inspección aprobada
+        afectados.add(
+          ComponenteRevisionItem(
+            componenteId: componenteId,
+            nombre: componente.nombre,
+            estado: EstadoComponente.disponible.value,
           ),
         );
       }

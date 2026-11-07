@@ -72,7 +72,10 @@ class EquipoService {
       if (item is! Map) {
         throw AuthException('El servidor devolvió una respuesta inesperada.');
       }
-      equipos.add(Equipo.fromJson(Map<String, dynamic>.from(item)));
+      final equipo = Equipo.fromJson(Map<String, dynamic>.from(item));
+      if (equipo.activo) {
+        equipos.add(equipo);
+      }
     }
     return PaginaApi(items: equipos, total: PaginadorApi.totalDesde(response));
   }

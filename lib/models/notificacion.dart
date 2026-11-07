@@ -1,3 +1,5 @@
+import '../utils/reporte_formatters.dart';
+
 class NotificacionApp {
   const NotificacionApp({
     required this.notificacionId,
@@ -29,12 +31,8 @@ class NotificacionApp {
       detalleRentaId: json['detalle_renta_id'] as int? ?? 0,
       titulo: json['titulo'] as String? ?? '',
       mensaje: json['mensaje'] as String? ?? '',
-      creadaEn: DateTime.tryParse(json['creada_en']?.toString() ?? '') ??
-          DateTime.now(),
-      leidaEn: json['leida_en'] != null
-          ? DateTime.tryParse(json['leida_en'].toString())
-          : null,
+      creadaEn: parseApiUtcDateTime(json['creada_en']) ?? DateTime.now(),
+      leidaEn: parseApiUtcDateTime(json['leida_en']),
     );
   }
 }
-

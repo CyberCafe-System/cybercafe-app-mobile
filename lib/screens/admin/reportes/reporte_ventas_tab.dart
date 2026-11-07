@@ -22,14 +22,38 @@ class ReporteVentasTab extends StatefulWidget {
 }
 
 class _ReporteVentasTabState extends State<ReporteVentasTab> {
+  static const int _pageSize = 25;
   final TextEditingController _busqueda = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _consulta = '';
   bool _exportando = false;
+  int _visibles = _pageSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _busqueda.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) {
+      final totalFiltradas = _filtradas.length;
+      if (_visibles < totalFiltradas) {
+        setState(() {
+          _visibles = (_visibles + _pageSize).clamp(0, totalFiltradas);
+        });
+      }
+    }
   }
 
   List<VentaReporte> get _filtradas {
@@ -40,7 +64,7 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
   }
 
   Future<void> _exportarPdf() async {
-    final ventas = _filtradas;
+    final ventas = _filtradas.where((v) => !v.estaAnulada).toList();
     if (ventas.isEmpty) {
       _mostrarMensaje('No hay ventas para exportar.');
       return;
@@ -70,13 +94,21 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
   @override
   Widget build(BuildContext context) {
     final ventas = _filtradas;
-    final total = ventas.fold<double>(0, (suma, venta) => suma + venta.total);
-    final promedio = ventas.isEmpty ? 0.0 : total / ventas.length;
+    final ventasValidas = ventas.where((v) => !v.estaAnulada).toList();
+    final total = ventasValidas.fold<double>(
+      0,
+      (suma, venta) => suma + venta.total,
+    );
+    final promedio =
+        ventasValidas.isEmpty ? 0.0 : total / ventasValidas.length;
+    final ventasMostradas = ventas.take(_visibles).toList();
+    final hayMas = ventasMostradas.length < ventas.length;
 
     return RefreshIndicator(
       color: adminAmbar,
       onRefresh: widget.onRefresh,
       child: ListView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
@@ -85,7 +117,10 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
           ReporteActionBar(
             controller: _busqueda,
             hintText: 'Cliente, ID o cajero...',
-            onChanged: (valor) => setState(() => _consulta = valor),
+            onChanged: (valor) => setState(() {
+              _consulta = valor;
+              _visibles = _pageSize;
+            }),
             onRefresh: () => widget.onRefresh(),
             onPdf: _exportarPdf,
             exportando: _exportando,
@@ -105,7 +140,7 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
               Expanded(
                 child: ReporteStatCard(
                   titulo: 'Ventas',
-                  valor: '${ventas.length}',
+                  valor: '${ventasValidas.length}',
                   icono: Icons.receipt_long_rounded,
                   color: adminAmbar,
                 ),
@@ -135,8 +170,8 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
                     : 'No hay ventas que coincidan con "${_consulta.trim()}".',
               ),
             )
-          else
-            for (final venta in ventas) ...[
+          else ...[
+            for (final venta in ventasMostradas) ...[
               _TarjetaVenta(
                 venta: venta,
                 onTap: () {
@@ -149,6 +184,24 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
               ),
               const SizedBox(height: 10),
             ],
+            if (hayMas)
+              Center(
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _visibles = (_visibles + _pageSize).clamp(
+                        0,
+                        ventas.length,
+                      );
+                    });
+                  },
+                  icon: const Icon(Icons.expand_more_rounded),
+                  label: Text(
+                    'Cargar más (${ventasMostradas.length} de ${ventas.length})',
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );

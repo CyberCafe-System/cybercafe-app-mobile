@@ -449,11 +449,18 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                       onTap: () async {
                         if (equipoId == null) return;
                         if (pendiente == null) {
-                          final mensaje = rentaActiva == null
-                              ? 'Este equipo no tiene una renta pendiente '
-                                    'de revisión.'
-                              : 'El equipo está en uso. Podrás inspeccionarlo '
-                                    'cuando finalice la renta.';
+                          final String mensaje;
+                          if (rentaActiva == null) {
+                            mensaje =
+                                'Este equipo no tiene una renta pendiente '
+                                'de revisión.';
+                          } else if (rentaActiva.esTiempoTerminado) {
+                            mensaje = 'Tiempo terminado';
+                          } else {
+                            mensaje =
+                                'El equipo está en uso. Podrás inspeccionarlo '
+                                'cuando finalice la renta.';
+                          }
                           ScaffoldMessenger.of(context)
                             ..hideCurrentSnackBar()
                             ..showSnackBar(

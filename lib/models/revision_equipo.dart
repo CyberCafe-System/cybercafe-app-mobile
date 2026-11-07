@@ -1,3 +1,5 @@
+import '../utils/reporte_formatters.dart';
+
 class ComponenteRevisionItem {
   const ComponenteRevisionItem({
     this.componenteId,
@@ -28,6 +30,10 @@ class RevisionEquipo {
     required this.detalleRentaId,
     this.usuarioId,
     this.usuarioNombre,
+    this.equipoId,
+    this.equipoNombre,
+    this.equipoTipo,
+    this.clienteNombre,
     required this.inspeccionPasada,
     required this.observaciones,
     this.fechaRevision,
@@ -38,6 +44,10 @@ class RevisionEquipo {
   final int detalleRentaId;
   final int? usuarioId;
   final String? usuarioNombre;
+  final int? equipoId;
+  final String? equipoNombre;
+  final String? equipoTipo;
+  final String? clienteNombre;
   final bool inspeccionPasada;
   final String observaciones;
   final DateTime? fechaRevision;
@@ -61,6 +71,9 @@ class RevisionEquipo {
 
     final fechaRevision = json['fecha_revision'];
     final usuarioNombre = json['usuario_nombre'];
+    final equipoNombre = json['equipo_nombre'];
+    final equipoTipo = json['equipo_tipo'];
+    final clienteNombre = json['cliente_nombre'];
 
     return RevisionEquipo(
       revisionEquipoId: _parseInt(json['revision_equipo_id']),
@@ -69,11 +82,19 @@ class RevisionEquipo {
       usuarioNombre: usuarioNombre is String && usuarioNombre.trim().isNotEmpty
           ? usuarioNombre.trim()
           : null,
+      equipoId: _parseInt(json['equipo_id']),
+      equipoNombre: equipoNombre is String && equipoNombre.trim().isNotEmpty
+          ? equipoNombre.trim()
+          : null,
+      equipoTipo: equipoTipo is String && equipoTipo.trim().isNotEmpty
+          ? equipoTipo.trim()
+          : null,
+      clienteNombre: clienteNombre is String && clienteNombre.trim().isNotEmpty
+          ? clienteNombre.trim()
+          : null,
       inspeccionPasada: inspeccionPasada,
       observaciones: observaciones,
-      fechaRevision: fechaRevision is String
-          ? DateTime.tryParse(fechaRevision)
-          : null,
+      fechaRevision: parseApiUtcDateTime(fechaRevision),
     );
   }
 
@@ -99,6 +120,10 @@ class RevisionEquipo {
       'detalle_renta_id': detalleRentaId,
       if (usuarioId != null) 'usuario_id': usuarioId,
       if (usuarioNombre != null) 'usuario_nombre': usuarioNombre,
+      if (equipoId != null) 'equipo_id': equipoId,
+      if (equipoNombre != null) 'equipo_nombre': equipoNombre,
+      if (equipoTipo != null) 'equipo_tipo': equipoTipo,
+      if (clienteNombre != null) 'cliente_nombre': clienteNombre,
       'inspeccion_pasada': inspeccionPasada,
       'observaciones': observaciones,
       if (fechaRevision != null)

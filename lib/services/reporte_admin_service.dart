@@ -26,40 +26,72 @@ class ReporteAdminService {
   Future<ReporteAdminData> cargarReportes({bool forceRefresh = false}) async {
     if (!forceRefresh && _cache != null) return _cache!;
 
-    final resultados = await Future.wait([
-      _getAllList(ApiConfig.ventasPath, 'No se pudieron cargar las ventas.'),
-      _getAllList(ApiConfig.rentasPath, 'No se pudieron cargar las rentas.'),
-      _getAllList(ApiConfig.productosPath, 'No se pudo cargar el inventario.'),
-      _getAllListOrEmpty(
+    var huboFalloParcial = false;
+
+    Future<List<Map<String, dynamic>>> cargarCatalogoAuxiliar(
+      String path,
+      String fallback,
+    ) async {
+      try {
+        return await _getAllList(path, fallback);
+      } on AuthException catch (e) {
+        if (e.statusCode == 401) rethrow;
+        if (e.statusCode != 403) huboFalloParcial = true;
+        return const [];
+      } catch (_) {
+        huboFalloParcial = true;
+        return const [];
+      }
+    }
+
+    final principalesFuture = Future.wait([
+      _getAllPaginado(ApiConfig.ventasPath, 'No se pudieron cargar las ventas.'),
+      _getAllPaginado(ApiConfig.rentasPath, 'No se pudieron cargar las rentas.'),
+      _getAllPaginado(
+        ApiConfig.productosPath,
+        'No se pudo cargar el inventario.',
+      ),
+    ]);
+
+    final catalogosFuture = Future.wait([
+      cargarCatalogoAuxiliar(
         ApiConfig.clientesPath,
         'No se pudieron cargar los clientes.',
       ),
-      _getAllListOrEmpty(
+      cargarCatalogoAuxiliar(
         ApiConfig.categoriasPath,
         'No se pudieron cargar las categorías.',
       ),
-      _getAllListOrEmpty(
+      cargarCatalogoAuxiliar(
         ApiConfig.equiposPath,
         'No se pudieron cargar los equipos.',
       ),
-      _getAllListOrEmpty(
+      cargarCatalogoAuxiliar(
         ApiConfig.usuariosPath,
         'No se pudieron cargar los usuarios.',
       ),
-      _getAllListOrEmpty(
+      cargarCatalogoAuxiliar(
         ApiConfig.detallesRentaPath,
         'No se pudieron cargar los estados de las rentas.',
       ),
     ]);
 
-    final ventasJson = resultados[0];
-    final rentasJson = resultados[1];
-    final productosJson = resultados[2];
-    final clientesJson = resultados[3];
-    final categoriasJson = resultados[4];
-    final equiposJson = resultados[5];
-    final usuariosJson = resultados[6];
-    final detallesRentaJson = resultados[7];
+    final principales = await principalesFuture;
+    final catalogos = await catalogosFuture;
+
+    final ventasJson = principales[0].items;
+    final rentasJson = principales[1].items;
+    final productosJson = principales[2].items;
+    final truncado =
+        principales[0].truncado ||
+        principales[1].truncado ||
+        principales[2].truncado;
+
+    final clientesJson = catalogos[0];
+    final categoriasJson = catalogos[1];
+    final equiposJson = catalogos[2];
+    final usuariosJson = catalogos[3];
+    final detallesRentaJson = catalogos[4];
 
     final clientesPorId = <int, ClienteReporte>{};
     for (final item in clientesJson) {
@@ -146,8 +178,11 @@ class ReporteAdminService {
       productosPorId: productosPorId,
       equiposPorId: equiposPorId,
       usuariosPorId: usuariosPorId,
+      truncado: truncado,
     );
-    _cache = data;
+    if (!huboFalloParcial) {
+      _cache = data;
+    }
     return data;
   }
 
@@ -332,6 +367,7 @@ class ReporteAdminService {
       subtotal: base.subtotal,
       iva: base.iva,
       total: base.total,
+      estado: base.estado,
     );
   }
 
@@ -379,13 +415,13 @@ class ReporteAdminService {
     return b.compareTo(a);
   }
 
-  Future<List<Map<String, dynamic>>> _getAllList(
+  Future<ResultadoPaginado<Map<String, dynamic>>> _getAllPaginado(
     String path,
     String fallback, {
     int pageSize = 100,
-    int maxPages = 200,
-  }) async {
-    final resultado = await PaginadorApi.recolectar<Map<String, dynamic>>(
+    int maxPages = 20,
+  }) {
+    return PaginadorApi.recolectar<Map<String, dynamic>>(
       pageSize: pageSize,
       maxItems: pageSize * maxPages,
       cargarPagina: (offset, limit) => _getList(
@@ -394,6 +430,20 @@ class ReporteAdminService {
         ).replace(queryParameters: {'offset': '$offset', 'limit': '$limit'}),
         fallback,
       ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _getAllList(
+    String path,
+    String fallback, {
+    int pageSize = 100,
+    int maxPages = 20,
+  }) async {
+    final resultado = await _getAllPaginado(
+      path,
+      fallback,
+      pageSize: pageSize,
+      maxPages: maxPages,
     );
     return resultado.items;
   }

@@ -1,3 +1,5 @@
+import '../utils/reporte_formatters.dart';
+
 class RentaActivaEquipo {
   const RentaActivaEquipo({
     required this.detalleRentaId,
@@ -113,8 +115,5 @@ String? _parseString(dynamic value) {
 }
 
 DateTime? _parseDate(dynamic value) {
-  if (value is String && value.trim().isNotEmpty) {
-    return DateTime.tryParse(value.trim());
-  }
-  return null;
+  return parseApiUtcDateTime(value);
 }

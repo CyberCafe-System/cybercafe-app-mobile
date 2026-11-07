@@ -72,7 +72,7 @@ class _SessionWatcherState extends State<SessionWatcher>
 
     _notificacionesTimer?.cancel();
     _notificacionesTimer = Timer.periodic(
-      const Duration(seconds: 8),
+      const Duration(seconds: 10),
       (_) => _consultarNotificaciones(),
     );
   }

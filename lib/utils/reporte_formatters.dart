@@ -1,3 +1,18 @@
+DateTime? parseApiUtcDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value.toLocal();
+  var raw = value.toString().trim();
+  if (raw.isEmpty) return null;
+  final hasTimezone =
+      raw.endsWith('Z') ||
+      raw.endsWith('z') ||
+      RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(raw);
+  if (!hasTimezone && (raw.contains('T') || raw.contains(' '))) {
+    raw = '${raw.replaceFirst(' ', 'T')}Z';
+  }
+  return DateTime.tryParse(raw)?.toLocal();
+}
+
 String formatearMoneda(num valor) => '\$${valor.toStringAsFixed(2)}';
 
 String formatearFecha(DateTime? fecha, {String vacio = 'No disponible'}) {

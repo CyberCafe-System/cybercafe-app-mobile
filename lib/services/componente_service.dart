@@ -60,20 +60,19 @@ class ComponenteService {
       );
     }
 
-    final base = ApiConfig.endpoint(
+    // /equipos/{id}/componentes retorna la lista completa de componentes del equipo en una sola petición.
+    final uri = ApiConfig.endpoint(
       '${ApiConfig.equiposPath}/$equipoId/componentes',
     );
-    final resultado = await PaginadorApi.recolectar<Componente>(
-      maxItems: maxItems,
-      cargarPagina: (offset, limit) => _getComponentes(
-        base.replace(
-          queryParameters: {'offset': '$offset', 'limit': '$limit'},
-        ),
-        'No se pudieron cargar los componentes.',
-        mensajeNoEncontrado: 'Equipo no encontrado.',
-      ),
+    final pagina = await _getComponentes(
+      uri,
+      'No se pudieron cargar los componentes.',
+      mensajeNoEncontrado: 'Equipo no encontrado.',
     );
-    return resultado.items;
+    if (pagina.items.length > maxItems) {
+      return pagina.items.sublist(0, maxItems);
+    }
+    return pagina.items;
   }
 
   Future<PaginaApi<Componente>> _getComponentes(

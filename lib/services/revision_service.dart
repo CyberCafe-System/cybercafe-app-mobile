@@ -79,9 +79,6 @@ class RevisionService {
       );
     }
 
-    // El backend ya resuelve equipo y cliente. Antes se listaban las
-    // colecciones completas de rentas, clientes y revisiones solo para unir
-    // los nombres, lo que multiplicaba las peticiones del dashboard.
     final detalles = await _getAllList(
       ApiConfig.detallesRentaPendientesRevisionPath,
       'No se pudieron consultar las rentas pendientes de revisión.',
@@ -127,11 +124,51 @@ class RevisionService {
       );
     }
 
-    final revisionesFuture = _getAllList(
+    final revisionesJson = await _getAllList(
       ApiConfig.revisionesPath,
       'No se pudo cargar el historial de revisiones.',
       maxItems: maxItems,
     );
+    if (revisionesJson.isEmpty) return const [];
+
+    final revisiones = revisionesJson.map(RevisionEquipo.fromJson).toList();
+    final todasEnriquecidas = revisiones.every(
+      (r) => r.equipoNombre != null && r.equipoNombre!.isNotEmpty,
+    );
+
+    if (todasEnriquecidas) {
+      final historial = <RevisionHistorialItem>[];
+      for (final revision in revisiones) {
+        TipoEquipo? tipo;
+        if (revision.equipoTipo != null) {
+          try {
+            tipo = TipoEquipo.fromValue(revision.equipoTipo!);
+          } catch (_) {}
+        }
+        historial.add(
+          RevisionHistorialItem(
+            revision: revision,
+            equipoNombre: revision.equipoNombre!,
+            equipoTipo: tipo,
+            clienteNombre: revision.clienteNombre,
+            usuarioNombre:
+                revision.usuarioNombre ??
+                (revision.usuarioId == _auth.usuarioId ? _auth.username : null),
+          ),
+        );
+      }
+      historial.sort((a, b) {
+        final fechaA = a.revision.fechaRevision;
+        final fechaB = b.revision.fechaRevision;
+        if (fechaA == null && fechaB == null) return 0;
+        if (fechaA == null) return 1;
+        if (fechaB == null) return -1;
+        return fechaB.compareTo(fechaA);
+      });
+      return historial;
+    }
+
+    // Fallback de compatibilidad si alguna respuesta no incluye campos enriquecidos
     final detallesFuture = _getAllListOrEmpty(
       ApiConfig.detallesRentaPath,
       'No se pudieron cargar los detalles de renta.',
@@ -154,7 +191,6 @@ class RevisionService {
     );
     final nombresFuture = _getNombresUsuarios();
 
-    final revisionesJson = await revisionesFuture;
     final detallesJson = await detallesFuture;
     final equiposJson = await equiposFuture;
     final rentasJson = await rentasFuture;
@@ -205,22 +241,31 @@ class RevisionService {
     final nombresUsuarios = await nombresFuture;
 
     final historial = <RevisionHistorialItem>[];
-    for (final item in revisionesJson) {
-      final revision = RevisionEquipo.fromJson(item);
-      final equipoId = equipoPorDetalle[revision.detalleRentaId];
+    for (final revision in revisiones) {
+      final equipoId =
+          revision.equipoId ?? equipoPorDetalle[revision.detalleRentaId];
       final equipo = equipoId == null ? null : equiposPorId[equipoId];
       final rentaId = rentaPorDetalle[revision.detalleRentaId];
       final clienteId = rentaId == null ? null : clientePorRenta[rentaId];
-      final clienteNombre = clienteId == null
-          ? null
-          : nombrePorCliente[clienteId];
+      final clienteNombre =
+          revision.clienteNombre ??
+          (clienteId == null ? null : nombrePorCliente[clienteId]);
+
+      TipoEquipo? tipo = equipo?.tipo;
+      if (tipo == null && revision.equipoTipo != null) {
+        try {
+          tipo = TipoEquipo.fromValue(revision.equipoTipo!);
+        } catch (_) {}
+      }
+
       historial.add(
         RevisionHistorialItem(
           revision: revision,
           equipoNombre:
+              revision.equipoNombre ??
               equipo?.nombre ??
               (equipoId == null ? 'Equipo no disponible' : 'Equipo #$equipoId'),
-          equipoTipo: equipo?.tipo,
+          equipoTipo: tipo,
           clienteNombre: clienteNombre,
           usuarioNombre:
               revision.usuarioNombre ??

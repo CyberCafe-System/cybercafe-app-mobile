@@ -1,3 +1,4 @@
+import '../utils/reporte_formatters.dart';
 import 'equipo.dart';
 
 class ClienteReporte {
@@ -117,6 +118,7 @@ class VentaReporte {
     required this.subtotal,
     required this.iva,
     required this.total,
+    this.estado = 'PAGADA',
   });
 
   final int? ventaId;
@@ -128,6 +130,9 @@ class VentaReporte {
   final double subtotal;
   final double iva;
   final double total;
+  final String estado;
+
+  bool get estaAnulada => estado.trim().toUpperCase() == 'ANULADA';
 
   String get clienteMostrado {
     final nombreCliente = cliente?.nombreCompleto;
@@ -149,6 +154,7 @@ class VentaReporte {
     final subtotal = _parseDouble(json['subtotal']);
     final iva = _parseDouble(json['iva']);
     final total = _parseNullableDouble(json['total']) ?? subtotal + iva;
+    final rawEstado = _parseNullableString(json['estado']);
     return VentaReporte(
       ventaId: _parseInt(json['venta_id']),
       fecha: _parseDate(json['fecha']),
@@ -157,6 +163,7 @@ class VentaReporte {
       subtotal: subtotal,
       iva: iva,
       total: total,
+      estado: rawEstado ?? 'PAGADA',
     );
   }
 }
@@ -367,6 +374,7 @@ class ReporteAdminData {
     required this.productosPorId,
     required this.equiposPorId,
     required this.usuariosPorId,
+    this.truncado = false,
   });
 
   final List<VentaReporte> ventas;
@@ -376,9 +384,11 @@ class ReporteAdminData {
   final Map<int, ProductoReporte> productosPorId;
   final Map<int, Equipo> equiposPorId;
   final Map<int, String> usuariosPorId;
+  final bool truncado;
 
-  double get totalVentas =>
-      ventas.fold(0, (total, venta) => total + venta.total);
+  double get totalVentas => ventas
+      .where((venta) => !venta.estaAnulada)
+      .fold(0, (total, venta) => total + venta.total);
   double get totalRentas =>
       rentas.fold(0, (total, renta) => total + renta.total);
   int get productosStockBajo =>
@@ -427,8 +437,5 @@ bool _parseBool(dynamic value, {required bool fallback}) {
 }
 
 DateTime? _parseDate(dynamic value) {
-  if (value is String && value.trim().isNotEmpty) {
-    return DateTime.tryParse(value.trim());
-  }
-  return null;
+  return parseApiUtcDateTime(value);
 }

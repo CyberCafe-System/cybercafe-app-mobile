@@ -42,6 +42,7 @@ class Equipo {
     this.imagen,
     required this.tipo,
     required this.estado,
+    this.activo = true,
   });
 
   final int? equipoId;
@@ -51,6 +52,7 @@ class Equipo {
   final String? imagen;
   final TipoEquipo tipo;
   final EstadoEquipo estado;
+  final bool activo;
 
   factory Equipo.fromJson(Map<String, dynamic> json) {
     return Equipo(
@@ -61,6 +63,7 @@ class Equipo {
       imagen: json['imagen'] as String?,
       tipo: TipoEquipo.fromValue(_parseString(json['tipo'], 'tipo')),
       estado: EstadoEquipo.fromValue(_parseString(json['estado'], 'estado')),
+      activo: _parseBool(json['activo'], fallback: true),
     );
   }
 
@@ -73,6 +76,7 @@ class Equipo {
       'imagen': imagen,
       'tipo': tipo.value,
       'estado': estado.value,
+      'activo': activo,
     };
   }
 }
@@ -100,4 +104,15 @@ double _parseDouble(dynamic value, String field) {
 String _parseString(dynamic value, String field) {
   if (value is String) return value;
   throw FormatException('El campo $field debe ser texto');
+}
+
+bool _parseBool(dynamic value, {required bool fallback}) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final lower = value.trim().toLowerCase();
+    if (lower == 'true' || lower == '1') return true;
+    if (lower == 'false' || lower == '0') return false;
+  }
+  return fallback;
 }

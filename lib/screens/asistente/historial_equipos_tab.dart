@@ -15,10 +15,13 @@ class HistorialEquiposTab extends StatefulWidget {
 
 class HistorialEquiposTabState extends State<HistorialEquiposTab>
     with AutomaticKeepAliveClientMixin {
+  static const int _pageSize = 25;
   late Future<List<RevisionHistorialItem>> _historialFuture;
   final TextEditingController _busqueda = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _consulta = '';
   FiltroHistorialEquipo _filtro = FiltroHistorialEquipo.todos;
+  int _visibles = _pageSize;
 
   @override
   bool get wantKeepAlive => true;
@@ -27,12 +30,25 @@ class HistorialEquiposTabState extends State<HistorialEquiposTab>
   void initState() {
     super.initState();
     _historialFuture = _cargarHistorial();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _busqueda.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) {
+      setState(() {
+        _visibles += _pageSize;
+      });
+    }
   }
 
   Future<List<RevisionHistorialItem>> _cargarHistorial() {
@@ -41,6 +57,7 @@ class HistorialEquiposTabState extends State<HistorialEquiposTab>
 
   void recargar() {
     setState(() {
+      _visibles = _pageSize;
       _historialFuture = _cargarHistorial();
     });
   }
@@ -87,18 +104,21 @@ class HistorialEquiposTabState extends State<HistorialEquiposTab>
                 return _buildSinResultados();
               }
 
+              final mostrados = filtrados.take(_visibles).toList();
+
               return RefreshIndicator(
                 color: const Color(0xFFB06B05),
                 onRefresh: _refrescar,
                 child: ListView.separated(
+                  controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
-                  itemCount: filtrados.length,
+                  itemCount: mostrados.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 15),
                   itemBuilder: (context, index) {
-                    return _buildTarjeta(filtrados[index]);
+                    return _buildTarjeta(mostrados[index]);
                   },
                 ),
               );

@@ -3,7 +3,6 @@ import 'dart:convert';
 import '../config/api_config.dart';
 import '../models/renta_activa.dart';
 import 'auth_service.dart';
-import 'paginacion_api.dart';
 
 class RentaActivaService {
   RentaActivaService({AuthService? auth})
@@ -19,19 +18,18 @@ class RentaActivaService {
     final consultadaEn = DateTime.now();
 
     try {
-      // El endpoint ya incluye el nombre del cliente, así que no hace falta
-      // listar las colecciones completas de rentas y clientes.
-      final activasJson = await _getAllList(
-        '${ApiConfig.rentasPath}/activas',
+      // /rentas/activas devuelve directamente todas las rentas activas en una sola petición.
+      final activasJson = await _getListDirecta(
+        ApiConfig.endpoint('${ApiConfig.rentasPath}/activas'),
         'No se pudieron cargar las rentas activas.',
-        maxItems: maxItems,
       );
       if (activasJson.isEmpty) return const {};
 
       final activas = <int, RentaActivaEquipo>{};
-      for (final item in activasJson) {
+      final limite = activasJson.length > maxItems ? maxItems : activasJson.length;
+      for (var i = 0; i < limite; i++) {
         final renta = RentaActivaEquipo.fromJson(
-          item,
+          activasJson[i],
           consultadaEn: consultadaEn,
         );
         if (renta.equipoId < 1) continue;
@@ -46,26 +44,7 @@ class RentaActivaService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _getAllList(
-    String path,
-    String fallback, {
-    int pageSize = 100,
-    int maxItems = 5000,
-  }) async {
-    final resultado = await PaginadorApi.recolectar<Map<String, dynamic>>(
-      pageSize: pageSize,
-      maxItems: maxItems,
-      cargarPagina: (offset, limit) => _getList(
-        ApiConfig.endpoint(
-          path,
-        ).replace(queryParameters: {'offset': '$offset', 'limit': '$limit'}),
-        fallback,
-      ),
-    );
-    return resultado.items;
-  }
-
-  Future<PaginaApi<Map<String, dynamic>>> _getList(
+  Future<List<Map<String, dynamic>>> _getListDirecta(
     Uri uri,
     String fallback,
   ) async {
@@ -86,7 +65,7 @@ class RentaActivaService {
       }
       items.add(Map<String, dynamic>.from(item));
     }
-    return PaginaApi(items: items, total: PaginadorApi.totalDesde(response));
+    return items;
   }
 
   dynamic _decode(List<int> bodyBytes, String fallback) {

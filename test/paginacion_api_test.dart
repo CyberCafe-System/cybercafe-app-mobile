@@ -4,6 +4,7 @@ import 'package:cybercafe_app_mobile/services/auth_service.dart';
 import 'package:cybercafe_app_mobile/services/componente_service.dart';
 import 'package:cybercafe_app_mobile/services/equipo_service.dart';
 import 'package:cybercafe_app_mobile/services/paginacion_api.dart';
+import 'package:cybercafe_app_mobile/services/renta_activa_service.dart';
 import 'package:cybercafe_app_mobile/services/revision_service.dart';
 import 'package:cybercafe_app_mobile/services/token_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -231,6 +232,140 @@ void main() {
       expect(pendientes.keys, [7]);
       expect(pendientes[7]!.detalleRentaId, 12);
       expect(pendientes[7]!.clienteNombre, 'Cliente nuevo');
+    });
+
+    test(
+      'RentaActivaService hace una sola petición aunque haya >=100 rentas activas',
+      () async {
+        var peticiones = 0;
+        final auth = await _authAutenticada((request) async {
+          if (request.method == 'POST' && request.url.path == '/oauth/login') {
+            return _loginResponse();
+          }
+          if (request.method == 'GET' && request.url.path == '/rentas/activas') {
+            peticiones++;
+            return _json(
+              List.generate(120, (i) {
+                final id = i + 1;
+                return {
+                  'detalle_renta_id': id,
+                  'renta_id': 100 + id,
+                  'equipo_id': id,
+                  'equipo_nombre': 'PC-$id',
+                  'cliente_id': id,
+                  'cliente_nombre': 'Cliente $id',
+                  'hora_inicio': '2026-11-06T17:00:00',
+                  'tiempo_de_renta': 60,
+                  'tiempo_agregado': 0,
+                  'hora_fin': '2026-11-06T18:00:00',
+                  'estado': 'En Curso',
+                  'estado_de_pago': 'Pendiente',
+                  'minutos_restantes': 30,
+                  'segundos_restantes': 1800,
+                };
+              }),
+            );
+          }
+          return _noEncontrado();
+        });
+
+        final activas = await RentaActivaService(
+          auth: auth,
+        ).getRentasActivasPorEquipo();
+
+        expect(peticiones, 1);
+        expect(activas, hasLength(120));
+      },
+    );
+
+    test(
+      'ComponenteService.getComponentesPorEquipo hace una sola petición directa',
+      () async {
+        var peticiones = 0;
+        final auth = await _authAutenticada((request) async {
+          if (request.method == 'POST' && request.url.path == '/oauth/login') {
+            return _loginResponse();
+          }
+          if (request.method == 'GET' &&
+              request.url.path == '/equipos/5/componentes') {
+            peticiones++;
+            return _json(
+              List.generate(110, (i) => _componenteJson(i + 1)),
+            );
+          }
+          return _noEncontrado();
+        });
+
+        final comps = await ComponenteService(
+          auth: auth,
+        ).getComponentesPorEquipo(5);
+
+        expect(peticiones, 1);
+        expect(comps, hasLength(110));
+      },
+    );
+
+    test(
+      'RevisionService.getHistorialRevisiones usa campos enriquecidos sin pedir tablas extra',
+      () async {
+        final rutasSolicitadas = <String>[];
+        final auth = await _authAutenticada((request) async {
+          if (request.method == 'POST' && request.url.path == '/oauth/login') {
+            return _loginResponse();
+          }
+          rutasSolicitadas.add(request.url.path);
+          if (request.method == 'GET' && request.url.path == '/revisiones') {
+            return _json(
+              [
+                {
+                  'revision_id': 1,
+                  'detalle_renta_id': 50,
+                  'usuario_id': 3,
+                  'equipo_id': 8,
+                  'equipo_nombre': 'PC Gamer 8',
+                  'equipo_tipo': 'PC',
+                  'cliente_nombre': 'Carlos López',
+                  'fecha_revision': '2026-11-06T18:00:00',
+                  'inspeccion_pasada': true,
+                  'observaciones': 'Sin novedades',
+                },
+              ],
+              total: 1,
+            );
+          }
+          return _noEncontrado();
+        });
+
+        final historial = await RevisionService(
+          auth: auth,
+        ).getHistorialRevisiones();
+
+        expect(historial, hasLength(1));
+        expect(historial.single.equipoNombre, 'PC Gamer 8');
+        expect(historial.single.clienteNombre, 'Carlos López');
+        expect(rutasSolicitadas, ['/revisiones']);
+      },
+    );
+
+    test('EquipoService filtra equipos dados de baja (activo: false)', () async {
+      final auth = await _authAutenticada((request) async {
+        if (request.method == 'POST' && request.url.path == '/oauth/login') {
+          return _loginResponse();
+        }
+        if (request.method == 'GET' && request.url.path == '/equipos') {
+          return _json(
+            [
+              {..._equipoJson(1), 'activo': true},
+              {..._equipoJson(2), 'activo': false},
+            ],
+            total: 2,
+          );
+        }
+        return _noEncontrado();
+      });
+
+      final equipos = await EquipoService(auth: auth).getTodosLosEquipos();
+      expect(equipos.map((e) => e.equipoId).toList(), [1]);
     });
   });
 }
