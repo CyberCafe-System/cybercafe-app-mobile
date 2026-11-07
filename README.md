@@ -118,14 +118,22 @@ Para correr la aplicación en tu entorno local junto con el backend:
 flutter run
 ```
 
-### ⚠️ Conexión a la API local
+### ⚠️ Conexión a la API
 
-Dado que la app corre en un dispositivo o emulador y el backend se ejecuta en tu PC en `127.0.0.1`, las direcciones IP cambian:
+En esta rama la app apunta por defecto a `http://158.158.0.0/` (definido en
+`lib/config/api_config.dart`). La URL está centralizada en un solo lugar y se
+puede sobreescribir en tiempo de build sin modificar el código:
 
-- **En emulador Android:** usa `http://10.0.2.2:8000/api/`
-- **En dispositivo físico:** usa la IP local de tu máquina, por ejemplo: `http://192.168.1.X:8000/api/`
+```bash
+flutter run --dart-define=API_BASE_URL=http://192.168.1.X:8080/
+```
 
-> Si ambos dispositivos están conectados a la misma red Wi‑Fi, esta configuración permite que la app se comunique con Django correctamente.
+La URL se normaliza al arrancar (agrega `http://` si falta el esquema y la
+barra final) y se valida para evitar configuraciones inválidas.
+
+> Al ser una app móvil, la URL incluida en el binario no debe tratarse como un
+> secreto: cualquiera puede extraerla. La configuración por `--dart-define`
+> sirve para cambiar de entorno sin recompilar código, no para ocultar el valor.
 
 ---
 
@@ -137,7 +145,7 @@ Al igual que el sistema web, la app móvil no se conecta directamente a la base 
 ┌─────────────────────────────────┐      ┌────────────────────────┐
 │       App Móvil (Flutter)       │      │                        │
 │                                 │      │     Django Backend     │
-│  1. Interfaz nativa (Dart)      ├─────►│     (Puerto 8000)      │
+│  1. Interfaz nativa (Dart)      ├─────►│     (Puerto 8080)      │
 │                                 │      │                        │
 │  2. Petición HTTP (Dio/http)    │◄─────┤  Devuelve datos (JSON) │
 │                                 │      └──────────┬─────────────┘
