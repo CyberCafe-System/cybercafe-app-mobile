@@ -11,7 +11,10 @@ import '../../services/auth_service.dart';
 import '../../services/equipo_service.dart';
 import '../../services/renta_activa_service.dart';
 import '../../services/revision_service.dart';
+import '../../services/notificacion_service.dart';
+import '../../services/local_notification_service.dart';
 import '../../utils/equipo_filtros.dart';
+import '../../widgets/session_watcher.dart';
 import '../../widgets/tarjeta_equipo.dart';
 
 class DashboardAsistente extends StatefulWidget {
@@ -30,6 +33,8 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
   DateTime _ahora = DateTime.now();
   Timer? _reloj;
 
+
+
   @override
   void initState() {
     super.initState();
@@ -38,10 +43,16 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
       if (!mounted) return;
       setState(() => _ahora = DateTime.now());
     });
+    SessionWatcher.onNotificacionesNuevas = () {
+      if (mounted) _recargarEquipos();
+    };
   }
+
+
 
   @override
   void dispose() {
+    SessionWatcher.onNotificacionesNuevas = null;
     _reloj?.cancel();
     _buscadorController.dispose();
     super.dispose();
@@ -49,7 +60,7 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
 
   Future<_DashboardData> _cargarDashboard() async {
     final resultados = await Future.wait<Object>([
-      EquipoService.instance.getEquipos(offset: 0, limit: 200),
+      EquipoService.instance.getTodosLosEquipos(),
       _cargarPendientesRevision(),
       _cargarRentasActivas(),
     ]);
@@ -187,7 +198,7 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 10,
                 offset: const Offset(0, 5),
               ),
@@ -280,7 +291,7 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                     borderRadius: BorderRadius.circular(25),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 5,
                       ),
                     ],
@@ -323,7 +334,7 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 5,
                       ),
                     ],
@@ -438,11 +449,18 @@ class _DashboardAsistenteState extends State<DashboardAsistente> {
                       onTap: () async {
                         if (equipoId == null) return;
                         if (pendiente == null) {
-                          final mensaje = rentaActiva == null
-                              ? 'Este equipo no tiene una renta pendiente '
-                                    'de revisión.'
-                              : 'El equipo está en uso. Podrás inspeccionarlo '
-                                    'cuando finalice la renta.';
+                          final String mensaje;
+                          if (rentaActiva == null) {
+                            mensaje =
+                                'Este equipo no tiene una renta pendiente '
+                                'de revisión.';
+                          } else if (rentaActiva.esTiempoTerminado) {
+                            mensaje = 'Tiempo terminado';
+                          } else {
+                            mensaje =
+                                'El equipo está en uso. Podrás inspeccionarlo '
+                                'cuando finalice la renta.';
+                          }
                           ScaffoldMessenger.of(context)
                             ..hideCurrentSnackBar()
                             ..showSnackBar(

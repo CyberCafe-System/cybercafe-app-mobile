@@ -218,6 +218,8 @@ Color _colorEstadoRenta(EstadoRentaReporte estado) {
   switch (estado) {
     case EstadoRentaReporte.activa:
       return adminAzul;
+    case EstadoRentaReporte.tiempoTerminado:
+      return const Color(0xFFC0392B);
     case EstadoRentaReporte.finalizada:
       return adminVerde;
     case EstadoRentaReporte.pendienteRevision:

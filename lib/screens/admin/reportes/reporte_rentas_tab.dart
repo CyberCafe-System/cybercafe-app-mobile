@@ -22,14 +22,38 @@ class ReporteRentasTab extends StatefulWidget {
 }
 
 class _ReporteRentasTabState extends State<ReporteRentasTab> {
+  static const int _pageSize = 25;
   final TextEditingController _busqueda = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _consulta = '';
   bool _exportando = false;
+  int _visibles = _pageSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _busqueda.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) {
+      final totalFiltradas = _filtradas.length;
+      if (_visibles < totalFiltradas) {
+        setState(() {
+          _visibles = (_visibles + _pageSize).clamp(0, totalFiltradas);
+        });
+      }
+    }
   }
 
   List<RentaReporte> get _filtradas {
@@ -74,11 +98,14 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
     final pendientes = rentas
         .where((renta) => renta.estadoPago == EstadoPagoReporte.pendiente)
         .length;
+    final rentasMostradas = rentas.take(_visibles).toList();
+    final hayMas = rentasMostradas.length < rentas.length;
 
     return RefreshIndicator(
       color: adminAmbar,
       onRefresh: widget.onRefresh,
       child: ListView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
@@ -87,7 +114,10 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
           ReporteActionBar(
             controller: _busqueda,
             hintText: 'Cliente, ID o estado...',
-            onChanged: (valor) => setState(() => _consulta = valor),
+            onChanged: (valor) => setState(() {
+              _consulta = valor;
+              _visibles = _pageSize;
+            }),
             onRefresh: () => widget.onRefresh(),
             onPdf: _exportarPdf,
             exportando: _exportando,
@@ -137,8 +167,8 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
                     : 'No hay rentas que coincidan con "${_consulta.trim()}".',
               ),
             )
-          else
-            for (final renta in rentas) ...[
+          else ...[
+            for (final renta in rentasMostradas) ...[
               _TarjetaRenta(
                 renta: renta,
                 onTap: () {
@@ -151,6 +181,24 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
               ),
               const SizedBox(height: 10),
             ],
+            if (hayMas)
+              Center(
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _visibles = (_visibles + _pageSize).clamp(
+                        0,
+                        rentas.length,
+                      );
+                    });
+                  },
+                  icon: const Icon(Icons.expand_more_rounded),
+                  label: Text(
+                    'Cargar más (${rentasMostradas.length} de ${rentas.length})',
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );

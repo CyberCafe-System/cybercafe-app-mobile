@@ -43,20 +43,24 @@ class ReportePdfService {
     String? filtro,
   }) async {
     await _cargarFuentes();
-    final total = ventas.fold<double>(0, (suma, venta) => suma + venta.total);
+    final ventasValidas = ventas.where((v) => !v.estaAnulada).toList();
+    final total = ventasValidas.fold<double>(
+      0,
+      (suma, venta) => suma + venta.total,
+    );
     final documento = _crearDocumento(
       titulo: 'Reporte de Ventas',
       filtro: filtro,
       resumen: [
-        _ResumenPdf('Ventas', '${ventas.length}'),
+        _ResumenPdf('Ventas', '${ventasValidas.length}'),
         _ResumenPdf('Total recaudado', formatearMoneda(total)),
       ],
-      tabla: ventas.isEmpty
+      tabla: ventasValidas.isEmpty
           ? _sinRegistros('No hay ventas para mostrar.')
           : pw.TableHelper.fromTextArray(
               headers: const ['Venta', 'Fecha', 'Cliente', 'Cajero', 'Total'],
               data: [
-                for (final venta in ventas)
+                for (final venta in ventasValidas)
                   [
                     '#${venta.ventaId ?? '—'}',
                     formatearFechaHora(venta.fecha),

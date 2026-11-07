@@ -99,190 +99,19 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
     final componenteId = componente.componenteId;
     if (componenteId == null) return;
 
-    final controller = TextEditingController(
-      text: _descripcionesDanio[componenteId] ?? '',
-    );
-    String? error;
-
     final resultado = await showModalBottomSheet<_ReporteDanio>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            void enviar({required bool mantenimiento}) {
-              final texto = controller.text.trim();
-              if (texto.isEmpty) {
-                setSheetState(
-                  () => error = 'Describe la falla del componente.',
-                );
-                return;
-              }
-              Navigator.pop(
-                sheetContext,
-                _ReporteDanio(descripcion: texto, mantenimiento: mantenimiento),
-              );
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.warning_amber_rounded,
-                            color: Colors.redAccent,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Reportar ${componente.nombre}',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'N.º de serie: ${_numeroSerieMostrado(componente)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.black54,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.close,
-                            color: Colors.grey,
-                            size: 28,
-                          ),
-                          onPressed: () => Navigator.pop(sheetContext),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 25),
-                    TextField(
-                      controller: controller,
-                      maxLines: 4,
-                      autofocus: true,
-                      onChanged: (_) {
-                        if (error != null) {
-                          setSheetState(() => error = null);
-                        }
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Describe la falla con detalle...',
-                        errorText: error,
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: const BorderSide(
-                            color: Colors.redAccent,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-                    GestureDetector(
-                      onTap: () => enviar(mantenimiento: true),
-                      child: Container(
-                        width: double.infinity,
-                        height: 55,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFF5252), Color(0xFFD32F2F)],
-                          ),
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.redAccent.withOpacity(0.4),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'ENVIAR A MANTENIMIENTO',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => enviar(mantenimiento: false),
-                      child: const Text(
-                        'Solo reportar daño',
-                        style: TextStyle(
-                          color: Color(0xFFB06B05),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      builder: (_) => _ReporteDanioSheet(
+        componente: componente,
+        numeroSerie: _numeroSerieMostrado(componente),
+        descripcionInicial: _descripcionesDanio[componenteId] ?? '',
+      ),
     );
 
-    controller.dispose();
-    if (resultado == null || !mounted) return;
+    // El modal puede cerrarse después de que esta pantalla dejó de estar montada.
+    if (!mounted || resultado == null) return;
 
     setState(() {
       _descripcionesDanio[componenteId] = resultado.descripcion;
@@ -298,6 +127,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
       }
     });
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -360,20 +190,32 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
     }
 
     final afectados = <ComponenteRevisionItem>[];
-    if (!inspeccionPasada) {
-      for (final componente in componentes) {
-        final componenteId = componente.componenteId;
-        if (componenteId == null) continue;
+    for (final componente in componentes) {
+      final componenteId = componente.componenteId;
+      if (componenteId == null) continue;
 
-        final estado = _estadosLocales[componenteId] ?? componente.estado;
-        if (estado == EstadoComponente.disponible) continue;
-
+      final estado = _estadosLocales[componenteId] ?? componente.estado;
+      if (!inspeccionPasada) {
+        if (estado == EstadoComponente.disponible &&
+            componente.estado == EstadoComponente.disponible) {
+          continue;
+        }
         afectados.add(
           ComponenteRevisionItem(
             componenteId: componenteId,
             nombre: componente.nombre,
             estado: estado.value,
             descripcionDanio: _descripcionesDanio[componenteId],
+          ),
+        );
+      } else if (componente.estado != EstadoComponente.disponible &&
+          estado == EstadoComponente.disponible) {
+        // Componente rehabilitado a Disponible durante una inspección aprobada
+        afectados.add(
+          ComponenteRevisionItem(
+            componenteId: componenteId,
+            nombre: componente.nombre,
+            estado: EstadoComponente.disponible.value,
           ),
         );
       }
@@ -660,7 +502,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: color.withOpacity(0.1),
+                              color: color.withValues(alpha: 0.1),
                               blurRadius: 15,
                               offset: const Offset(0, 5),
                             ),
@@ -746,7 +588,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: Colors.redAccent.withOpacity(
+                                        color: Colors.redAccent.withValues(alpha: 
                                           0.5,
                                         ),
                                       ),
@@ -790,10 +632,10 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                                 horizontal: 12,
                               ),
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.08),
+                                color: color.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: color.withOpacity(0.3),
+                                  color: color.withValues(alpha: 0.3),
                                 ),
                               ),
                               child: DropdownButtonHideUnderline(
@@ -868,7 +710,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: estadoColor.withOpacity(0.35)),
+                border: Border.all(color: estadoColor.withValues(alpha: 0.35)),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<EstadoEquipo>(
@@ -951,7 +793,7 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF2C1E16).withOpacity(0.3),
+                      color: const Color(0xFF2C1E16).withValues(alpha: 0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
@@ -980,6 +822,256 @@ class _InspeccionScreenState extends State<InspeccionScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Hoja para describir el daño de un componente.
+///
+/// El controlador del campo de texto se crea y se destruye aquí, junto con el
+/// ciclo de vida de la hoja. Antes vivía en la pantalla y se destruía apenas
+/// `showModalBottomSheet` terminaba, mientras la hoja seguía animándose al
+/// cerrar, lo que podía dejar dependencias activas en el árbol de widgets.
+class _ReporteDanioSheet extends StatefulWidget {
+  const _ReporteDanioSheet({
+    required this.componente,
+    required this.numeroSerie,
+    required this.descripcionInicial,
+  });
+
+  final Componente componente;
+  final String numeroSerie;
+  final String descripcionInicial;
+
+  @override
+  State<_ReporteDanioSheet> createState() => _ReporteDanioSheetState();
+}
+
+class _ReporteDanioSheetState extends State<_ReporteDanioSheet> {
+  late final TextEditingController _controller;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.descripcionInicial);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _enviar({required bool mantenimiento}) {
+    final texto = _controller.text.trim();
+    if (texto.isEmpty) {
+      setState(() => _error = 'Describe la falla del componente.');
+      return;
+    }
+
+    // Libera el foco y el teclado antes de cerrar la hoja.
+    FocusScope.of(context).unfocus();
+    Navigator.of(context).pop(
+      _ReporteDanio(descripcion: texto, mantenimiento: mantenimiento),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.redAccent,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Reportar ${widget.componente.nombre}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'N.º de serie: ${widget.numeroSerie}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.grey,
+                      size: 28,
+                    ),
+                    onPressed: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 25),
+              TextField(
+                controller: _controller,
+                maxLines: 4,
+                autofocus: true,
+                onChanged: (_) {
+                  if (_error != null) {
+                    setState(() => _error = null);
+                  }
+                },
+                decoration: InputDecoration(
+                  hintText: 'Describe la falla con detalle...',
+                  errorText: _error,
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(
+                      color: Colors.redAccent,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 25),
+              Row(
+                children: [
+                  Expanded(
+                    child: _BotonReporte(
+                      texto: 'ENVIAR A MANTENIMIENTO',
+                      colores: const [
+                        Color(0xFFFF5252),
+                        Color(0xFFD32F2F),
+                      ],
+                      sombra: Colors.redAccent.withValues(alpha: 0.4),
+                      onTap: () => _enviar(mantenimiento: true),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _BotonReporte(
+                      texto: 'SOLO REPORTAR DAÑO',
+                      colores: const [
+                        Color(0xFFFFB74D),
+                        Color(0xFFB06B05),
+                      ],
+                      sombra: const Color(
+                        0xFFB06B05,
+                      ).withValues(alpha: 0.35),
+                      onTap: () => _enviar(mantenimiento: false),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BotonReporte extends StatelessWidget {
+  const _BotonReporte({
+    required this.texto,
+    required this.colores,
+    required this.sombra,
+    required this.onTap,
+  });
+
+  final String texto;
+  final List<Color> colores;
+  final Color sombra;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 58,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: colores),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: sombra,
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            texto,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.6,
+              height: 1.25,
+            ),
+          ),
         ),
       ),
     );

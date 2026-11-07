@@ -5,6 +5,7 @@ import 'package:cybercafe_app_mobile/services/auth_service.dart';
 import 'package:cybercafe_app_mobile/services/reporte_admin_service.dart';
 import 'package:cybercafe_app_mobile/services/reporte_pdf_service.dart';
 import 'package:cybercafe_app_mobile/services/token_storage.dart';
+import 'package:cybercafe_app_mobile/utils/reporte_formatters.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -48,6 +49,54 @@ void main() {
         EstadoRentaReporte.pendienteRevision,
       );
     });
+
+    test(
+      'parseApiUtcDateTime interpreta cadenas ISO naive de la API como UTC y las convierte a hora local',
+      () {
+        final utcExplicito = DateTime.parse('2026-11-06T18:00:00Z').toLocal();
+        final parseadoNaive = parseApiUtcDateTime('2026-11-06T18:00:00');
+
+        expect(parseadoNaive, isNotNull);
+        expect(parseadoNaive, equals(utcExplicito));
+        expect(parseadoNaive!.isUtc, isFalse);
+      },
+    );
+
+    test(
+      'excluye ventas con estado ANULADA del total de ReporteAdminData',
+      () {
+        final data = ReporteAdminData(
+          ventas: const [
+            VentaReporte(
+              ventaId: 1,
+              fecha: null,
+              subtotal: 10,
+              iva: 1.3,
+              total: 11.3,
+              estado: 'ACTIVA',
+            ),
+            VentaReporte(
+              ventaId: 2,
+              fecha: null,
+              subtotal: 20,
+              iva: 2.6,
+              total: 22.6,
+              estado: 'ANULADA',
+            ),
+          ],
+          rentas: const [],
+          productos: const [],
+          clientesPorId: const {},
+          productosPorId: const {},
+          equiposPorId: const {},
+          usuariosPorId: const {},
+        );
+
+        expect(data.ventas[0].estaAnulada, isFalse);
+        expect(data.ventas[1].estaAnulada, isTrue);
+        expect(data.totalVentas, closeTo(11.3, 0.001));
+      },
+    );
   });
 
   group('ReporteAdminService', () {
