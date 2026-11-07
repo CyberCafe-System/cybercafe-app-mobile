@@ -118,16 +118,22 @@ Para correr la aplicación en tu entorno local junto con el backend:
 flutter run
 ```
 
-### ⚠️ Conexión a la API local
+### ⚠️ Conexión a la API
 
-Dado que la app corre en un dispositivo o emulador y el backend se ejecuta en tu PC en `127.0.0.1`, las direcciones IP cambian:
+En esta rama la app apunta por defecto a `http://158.158.0.0/` (definido en
+`lib/config/api_config.dart`). La URL está centralizada en un solo lugar y se
+puede sobreescribir en tiempo de build sin modificar el código:
 
-- **En emulador Android:** la app usa automáticamente `http://10.0.2.2:8080/`
-- **En iOS Simulator o escritorio:** usa `http://127.0.0.1:8080/`
-- **En dispositivo físico:** usa la IP local de tu máquina, por ejemplo:
-  `flutter run --dart-define=API_BASE_URL=http://192.168.1.X:8080/`
+```bash
+flutter run --dart-define=API_BASE_URL=http://192.168.1.X:8080/
+```
 
-> Si ambos dispositivos están conectados a la misma red Wi‑Fi, esta configuración permite que la app se comunique con Django correctamente.
+La URL se normaliza al arrancar (agrega `http://` si falta el esquema y la
+barra final) y se valida para evitar configuraciones inválidas.
+
+> Al ser una app móvil, la URL incluida en el binario no debe tratarse como un
+> secreto: cualquiera puede extraerla. La configuración por `--dart-define`
+> sirve para cambiar de entorno sin recompilar código, no para ocultar el valor.
 
 ---
 
