@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/reporte_admin.dart';
 import '../../../services/reporte_pdf_service.dart';
 import '../../../utils/busqueda_reportes.dart';
+import '../../../utils/rango_fechas.dart';
 import '../../../utils/reporte_formatters.dart';
 import 'reporte_widgets.dart';
 import 'venta_detalle_screen.dart';
@@ -64,9 +65,26 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
   }
 
   Future<void> _exportarPdf() async {
-    final ventas = _filtradas.where((v) => !v.estaAnulada).toList();
-    if (ventas.isEmpty) {
+    final ventasDisponibles = _filtradas.where((v) => !v.estaAnulada).toList();
+    if (ventasDisponibles.isEmpty) {
       _mostrarMensaje('No hay ventas para exportar.');
+      return;
+    }
+
+    final rango = await seleccionarRangoFechas(
+      context,
+      fechas: ventasDisponibles.map((venta) => venta.fecha),
+    );
+    if (!mounted || rango == null) return;
+
+    final ventas = ventasDisponibles
+        .where((venta) => estaEnRango(venta.fecha, rango))
+        .toList();
+    if (ventas.isEmpty) {
+      _mostrarMensaje(
+        'No hay ventas entre ${formatearFecha(rango.start)} y '
+        '${formatearFecha(rango.end)}.',
+      );
       return;
     }
 
@@ -75,6 +93,8 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
       await ReportePdfService.instance.exportarVentas(
         ventas,
         filtro: _consulta,
+        desde: rango.start,
+        hasta: rango.end,
       );
     } catch (_) {
       if (mounted) {
@@ -99,8 +119,7 @@ class _ReporteVentasTabState extends State<ReporteVentasTab> {
       0,
       (suma, venta) => suma + venta.total,
     );
-    final promedio =
-        ventasValidas.isEmpty ? 0.0 : total / ventasValidas.length;
+    final promedio = ventasValidas.isEmpty ? 0.0 : total / ventasValidas.length;
     final ventasMostradas = ventas.take(_visibles).toList();
     final hayMas = ventasMostradas.length < ventas.length;
 
