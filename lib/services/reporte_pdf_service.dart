@@ -30,8 +30,15 @@ class ReportePdfService {
   Future<void> exportarVentas(
     List<VentaReporte> ventas, {
     String? filtro,
+    DateTime? desde,
+    DateTime? hasta,
   }) async {
-    final bytes = await generarVentas(ventas, filtro: filtro);
+    final bytes = await generarVentas(
+      ventas,
+      filtro: filtro,
+      desde: desde,
+      hasta: hasta,
+    );
     await Printing.sharePdf(
       bytes: bytes,
       filename: 'reporte_ventas_${_marcaTiempo()}.pdf',
@@ -41,6 +48,8 @@ class ReportePdfService {
   Future<Uint8List> generarVentas(
     List<VentaReporte> ventas, {
     String? filtro,
+    DateTime? desde,
+    DateTime? hasta,
   }) async {
     await _cargarFuentes();
     final ventasValidas = ventas.where((v) => !v.estaAnulada).toList();
@@ -51,6 +60,7 @@ class ReportePdfService {
     final documento = _crearDocumento(
       titulo: 'Reporte de Ventas',
       filtro: filtro,
+      periodo: _formatearPeriodo(desde, hasta),
       resumen: [
         _ResumenPdf('Ventas', '${ventasValidas.length}'),
         _ResumenPdf('Total recaudado', formatearMoneda(total)),
@@ -103,8 +113,15 @@ class ReportePdfService {
   Future<void> exportarRentas(
     List<RentaReporte> rentas, {
     String? filtro,
+    DateTime? desde,
+    DateTime? hasta,
   }) async {
-    final bytes = await generarRentas(rentas, filtro: filtro);
+    final bytes = await generarRentas(
+      rentas,
+      filtro: filtro,
+      desde: desde,
+      hasta: hasta,
+    );
     await Printing.sharePdf(
       bytes: bytes,
       filename: 'reporte_rentas_${_marcaTiempo()}.pdf',
@@ -114,6 +131,8 @@ class ReportePdfService {
   Future<Uint8List> generarRentas(
     List<RentaReporte> rentas, {
     String? filtro,
+    DateTime? desde,
+    DateTime? hasta,
   }) async {
     await _cargarFuentes();
     final total = rentas.fold<double>(0, (suma, renta) => suma + renta.total);
@@ -123,6 +142,7 @@ class ReportePdfService {
     final documento = _crearDocumento(
       titulo: 'Reporte de Rentas',
       filtro: filtro,
+      periodo: _formatearPeriodo(desde, hasta),
       resumen: [
         _ResumenPdf('Rentas', '${rentas.length}'),
         _ResumenPdf('Total', formatearMoneda(total)),
@@ -261,6 +281,7 @@ class ReportePdfService {
     required List<_ResumenPdf> resumen,
     required pw.Widget tabla,
     String? filtro,
+    String? periodo,
   }) {
     final documento = pw.Document(
       theme: pw.ThemeData.withFont(base: _fuenteRegular, bold: _fuenteBold),
@@ -283,6 +304,17 @@ class ReportePdfService {
           _encabezado(titulo),
           pw.SizedBox(height: 14),
           _filaResumen(resumen),
+          if (periodo != null && periodo.trim().isNotEmpty) ...[
+            pw.SizedBox(height: 10),
+            pw.Text(
+              'Periodo: ${periodo.trim()}',
+              style: pw.TextStyle(
+                fontSize: 9,
+                color: _grisTexto,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ],
           if (filtro != null && filtro.trim().isNotEmpty) ...[
             pw.SizedBox(height: 10),
             pw.Text(
@@ -426,6 +458,15 @@ class ReportePdfService {
         style: pw.TextStyle(fontSize: 10, color: _grisTexto),
       ),
     );
+  }
+
+  String? _formatearPeriodo(DateTime? desde, DateTime? hasta) {
+    if (desde == null && hasta == null) return null;
+    if (desde != null && hasta != null) {
+      return '${formatearFecha(desde)} al ${formatearFecha(hasta)}';
+    }
+    if (desde != null) return 'Desde ${formatearFecha(desde)}';
+    return 'Hasta ${formatearFecha(hasta)}';
   }
 
   String _marcaTiempo() {
