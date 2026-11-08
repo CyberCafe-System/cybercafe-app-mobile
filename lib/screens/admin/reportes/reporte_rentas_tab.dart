@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/reporte_admin.dart';
 import '../../../services/reporte_pdf_service.dart';
 import '../../../utils/busqueda_reportes.dart';
+import '../../../utils/rango_fechas.dart';
 import '../../../utils/reporte_formatters.dart';
 import 'renta_detalle_screen.dart';
 import 'reporte_widgets.dart';
@@ -64,9 +65,26 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
   }
 
   Future<void> _exportarPdf() async {
-    final rentas = _filtradas;
-    if (rentas.isEmpty) {
+    final rentasDisponibles = _filtradas;
+    if (rentasDisponibles.isEmpty) {
       _mostrarMensaje('No hay rentas para exportar.');
+      return;
+    }
+
+    final rango = await seleccionarRangoFechas(
+      context,
+      fechas: rentasDisponibles.map((renta) => renta.fecha),
+    );
+    if (!mounted || rango == null) return;
+
+    final rentas = rentasDisponibles
+        .where((renta) => estaEnRango(renta.fecha, rango))
+        .toList();
+    if (rentas.isEmpty) {
+      _mostrarMensaje(
+        'No hay rentas entre ${formatearFecha(rango.start)} y '
+        '${formatearFecha(rango.end)}.',
+      );
       return;
     }
 
@@ -75,6 +93,8 @@ class _ReporteRentasTabState extends State<ReporteRentasTab> {
       await ReportePdfService.instance.exportarRentas(
         rentas,
         filtro: _consulta,
+        desde: rango.start,
+        hasta: rango.end,
       );
     } catch (_) {
       if (mounted) {
