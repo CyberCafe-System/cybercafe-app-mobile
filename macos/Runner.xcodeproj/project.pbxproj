@@ -398,7 +398,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.cybercafe.cybercafeAppMobile.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cybercafe_app_mobile.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/cybercafe_app_mobile";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/The Coffee Lan App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/The Coffee Lan App";
 			};
 			name = Debug;
 		};
@@ -412,7 +412,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.cybercafe.cybercafeAppMobile.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cybercafe_app_mobile.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/cybercafe_app_mobile";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/The Coffee Lan App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/The Coffee Lan App";
 			};
 			name = Release;
 		};
@@ -426,7 +426,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.cybercafe.cybercafeAppMobile.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cybercafe_app_mobile.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/cybercafe_app_mobile";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/The Coffee Lan App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/The Coffee Lan App";
 			};
 			name = Profile;
 		};

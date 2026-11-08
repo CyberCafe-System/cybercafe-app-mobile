@@ -1,11 +1,11 @@
 {
-    "name": "cybercafe_app_mobile",
-    "short_name": "cybercafe_app_mobile",
+    "name": "The Coffee Lan App",
+    "short_name": "The Coffee Lan App",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "The Coffee Lan App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

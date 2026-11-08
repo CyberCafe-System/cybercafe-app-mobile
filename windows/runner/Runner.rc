@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.cybercafe" "\0"
-            VALUE "FileDescription", "cybercafe_app_mobile" "\0"
+            VALUE "FileDescription", "The Coffee Lan App" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "cybercafe_app_mobile" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.cybercafe. All rights reserved." "\0"
             VALUE "OriginalFilename", "cybercafe_app_mobile.exe" "\0"
-            VALUE "ProductName", "cybercafe_app_mobile" "\0"
+            VALUE "ProductName", "The Coffee Lan App" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
