@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/background_session_service.dart';
 import '../services/local_notification_service.dart';
 import '../services/notificacion_service.dart';
 
@@ -45,7 +46,7 @@ class _SessionWatcherState extends State<SessionWatcher>
     _callback = _manejarSesionExpirada;
     _auth.onSessionExpired = _callback;
     WidgetsBinding.instance.addObserver(this);
-    LocalNotificationService.instance.solicitarPermisos();
+    _prepararSegundoPlano();
     _iniciarTemporizadores();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -55,15 +56,27 @@ class _SessionWatcherState extends State<SessionWatcher>
     });
   }
 
+  /// Pide permiso de notificaciones y arranca el servicio en primer plano.
+  ///
+  /// La notificación permanente mantiene vivo el proceso mientras el usuario
+  /// está en otra app, para que el sondeo siga detectando alertas.
+  Future<void> _prepararSegundoPlano() async {
+    await LocalNotificationService.instance.solicitarPermisos();
+    if (!mounted) return;
+    await BackgroundSessionService.iniciar();
+    await BackgroundSessionService.solicitarExclusionBateria();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _iniciarTemporizadores();
+      BackgroundSessionService.iniciar();
       _verificarSesion();
       _consultarNotificaciones();
-    } else {
-      _detenerTemporizadores();
     }
+    // Al pasar a segundo plano NO se detienen los temporizadores: el servicio
+    // en primer plano mantiene la app viva para seguir recibiendo alertas.
   }
 
   void _iniciarTemporizadores() {
@@ -112,6 +125,7 @@ class _SessionWatcherState extends State<SessionWatcher>
           titulo: n.titulo,
           cuerpo: n.mensaje,
         );
+        if (!mounted) break;
 
         // 2. Banner visual emergente en la app (SnackBar)
         final esRevision = n.tipo == 'PENDIENTE_REVISION';
@@ -160,6 +174,7 @@ class _SessionWatcherState extends State<SessionWatcher>
   @override
   void dispose() {
     _detenerTemporizadores();
+    BackgroundSessionService.detener();
     WidgetsBinding.instance.removeObserver(this);
     if (identical(_auth.onSessionExpired, _callback)) {
       _auth.onSessionExpired = null;
